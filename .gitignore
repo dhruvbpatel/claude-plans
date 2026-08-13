@@ -1,0 +1,15 @@
+# Never commit local secrets from any subproject
+.env
+.env.*
+!.env.example
+**/venv/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/node_modules/
+**/dist/
+.DS_Store
+*.log
+.playwright-mcp/
+credentials.json
+*.pem

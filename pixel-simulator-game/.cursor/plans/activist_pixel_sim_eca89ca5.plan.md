@@ -4,25 +4,25 @@ overview: Local-first activist-investor pixel RPG (Phaser + React + FastAPI) whe
 todos:
   - id: phase-0-recon
     content: Recon teammate repo if available; otherwise greenfield scaffold plan
-    status: pending
+    status: completed
   - id: phase-1-scaffold-spec
     content: Scaffold frontend/backend + write SPEC.md contracts
-    status: pending
+    status: completed
   - id: phase-2-engine
     content: Implement ScoringEngine + meridian-activist-01.json + pytest
-    status: pending
+    status: completed
   - id: phase-3-phaser
     content: Build walkable pixel HQ with NPCs and zone interacts
-    status: pending
+    status: completed
   - id: phase-4-wire
     content: Wire REST/SSE game loop with deterministic debate
-    status: pending
+    status: completed
   - id: phase-5-providers
     content: Add GatewayDebate + SwarmDebate stub behind env flag
-    status: pending
+    status: completed
   - id: phase-6-polish
     content: Ticker, lobby bonus, seed replay, balance pass
-    status: pending
+    status: completed
   - id: phase-7-multiplayer
     content: Multiplayer last — only after local POC signed off
     status: pending

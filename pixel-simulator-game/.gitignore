@@ -1,0 +1,50 @@
+# Secrets / local env (keep .env.example)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets/
+
+# Python
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Node / Vite
+node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+
+# Tooling / OS
+.DS_Store
+*.log
+npm-debug.log*
+.playwright-mcp/
+.playwright/
+test-results/
+playwright-report/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.sw?
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
