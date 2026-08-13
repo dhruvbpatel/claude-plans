@@ -91,7 +91,13 @@ function connectEvents(id: string): void {
     const { phase } = JSON.parse((e as MessageEvent).data) as { phase: string };
     gameBus.emit(GameEvents.PHASE, { phase });
   });
-  forward('debate_delta', GameEvents.SPEECH);
+  source.addEventListener('debate_delta', (e) => {
+    const payload = JSON.parse((e as MessageEvent).data);
+    gameBus.emit(GameEvents.DEBATE_LINE, payload);
+    gameBus.emit(GameEvents.SPEECH, payload);
+  });
+  forward('convene', GameEvents.CONVENE);
+  forward('board_vote', GameEvents.BOARD_VOTE);
   forward('kpi_patch', GameEvents.KPI);
   forward('options', GameEvents.OPTIONS);
   forward('news', GameEvents.NEWS);
