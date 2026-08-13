@@ -63,6 +63,17 @@ class DebateContext(TypedDict, total=False):
     beat: dict[str, Any]
     options: list[Option]
     npcs: list[str]
+    motionId: str
+
+
+class BoardVote(TypedDict, total=False):
+    ballots: dict[str, str]
+    winningOptionId: str
+    tieBrokenBy: str
+
+
+class BoardVoteResolver(Protocol):
+    def resolve(self, ctx: DebateContext) -> BoardVote: ...
 
 
 class DebateDelta(TypedDict, total=False):
