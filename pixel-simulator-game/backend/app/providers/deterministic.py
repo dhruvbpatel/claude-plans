@@ -54,6 +54,15 @@ class DeterministicDebate:
             for line in beat.get("scriptedLines", [])
         ]
 
+        motion_id = ctx.get("motionId")
+        if motion_id:
+            motion = next((o for o in options if o.get("id") == motion_id), None)
+            label = (motion or {}).get("label") or motion_id
+            lines.insert(
+                0,
+                {"speakerId": "chair", "text": f"The activist proposes '{label}'."},
+            )
+
         allies = cycle(_pick(ALLY_IDS, npcs))
         skeptics = cycle(_pick(SKEPTIC_IDS, npcs))
         for option in options:
