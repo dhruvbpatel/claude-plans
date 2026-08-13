@@ -169,6 +169,10 @@
       "title": "Board seats vs review",
       "zoneId": "boardroom",
       "npcId": "chair",
+      "boardVote": {
+        "voters": ["chair", "ceo", "cfo", "gc"],
+        "ballots": { "chair": "4b", "ceo": "4b", "cfo": "4a", "gc": "4b" }
+      },
       "situation": "Chair Okafor convenes a governance session. The board will entertain 'reasonable requests.' This is the moment to convert pressure into structural power.",
       "debateTopic": "Demand board seats, a strategic review, or both?",
       "scriptedLines": [
@@ -363,6 +367,10 @@
       "title": "Settle vs proxy",
       "zoneId": "boardroom",
       "npcId": "chair",
+      "boardVote": {
+        "voters": ["chair", "ceo", "cfo", "gc"],
+        "ballots": { "chair": "7a", "ceo": "7a", "cfo": "7a", "gc": "7b" }
+      },
       "situation": "The nomination window opens in ten days. Chair Okafor floats a settlement framework. Take the deal on the table, or take it to a vote.",
       "debateTopic": "Settle now or launch the proxy fight?",
       "scriptedLines": [
@@ -446,6 +454,10 @@
       "title": "Endgame vote",
       "zoneId": "boardroom",
       "npcId": "chair",
+      "boardVote": {
+        "voters": ["chair", "ceo", "cfo", "gc"],
+        "ballots": { "chair": "9c", "ceo": "9c", "cfo": "9c", "gc": "9c" }
+      },
       "situation": "Annual meeting day. The boardroom is standing-room only. The inspector of elections is ready. This is where the campaign ends — one way or the other.",
       "debateTopic": "Force the vote, ratify the deal, or take the last-minute compromise?",
       "scriptedLines": [
