@@ -16,6 +16,7 @@ from pathlib import Path
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
+from app.engine.factory import create_war_room_provider  # noqa: E402
 from app.engine.scoring import MeridianScoringEngine  # noqa: E402
 
 MERIDIAN = json.loads(
@@ -28,6 +29,32 @@ NOVATECH = json.loads(
 
 def pick_random(rng, options, _state):
     return rng.choice(options)
+
+
+def _chair_id(options, state):
+    provider = create_war_room_provider(scenario=NOVATECH)
+    result = provider.convene(
+        {
+            "state": state,
+            "quarter": int(state.get("beatIndex") or 0),
+            "news": str(state.get("lastNews") or ""),
+            "hand": options,
+            "interrupt": bool(state.get("interrupt")),
+        }
+    )
+    rec = result["chair"]["recommendedCardId"]
+    return rec
+
+
+def pick_follow_chair(rng, options, state):
+    rec = _chair_id(options, state)
+    return next((o for o in options if o["id"] == rec), options[0])
+
+
+def pick_defy_chair(rng, options, state):
+    rec = _chair_id(options, state)
+    others = [o for o in options if o["id"] != rec]
+    return rng.choice(others) if others else options[0]
 
 
 def run_meridian(engine, seed: int, pick) -> dict:
@@ -96,27 +123,41 @@ def report_meridian(n: int) -> None:
 
 def report_novatech(n: int) -> None:
     engine = MeridianScoringEngine()
-    wins = 0
-    bands: Counter[str] = Counter()
-    losses: Counter[str] = Counter()
-    composites: list[float] = []
-    for seed in range(n):
-        state = run_novatech(engine, seed, pick_random)
-        summary = engine.summary(state)
-        composites.append(float(summary.get("composite") or 0))
-        bands[str(summary.get("band") or "-")] += 1
-        if state["outcome"] == "won":
-            wins += 1
-        else:
-            losses[novatech_loss(state)] += 1
-    composites.sort()
-    median = composites[len(composites) // 2] if composites else 0
+    policies = [
+        ("random", pick_random),
+        ("follow-chair", pick_follow_chair),
+        ("defy-chair", pick_defy_chair),
+    ]
+    mixed_wins = 0
+    mixed_n = 0
+    for name, pick in policies:
+        wins = 0
+        bands: Counter[str] = Counter()
+        losses: Counter[str] = Counter()
+        composites: list[float] = []
+        for seed in range(n):
+            state = run_novatech(engine, seed, pick)
+            summary = engine.summary(state)
+            composites.append(float(summary.get("composite") or 0))
+            bands[str(summary.get("band") or "-")] += 1
+            mixed_n += 1
+            if state["outcome"] == "won":
+                wins += 1
+                mixed_wins += 1
+            else:
+                losses[novatech_loss(state)] += 1
+        composites.sort()
+        median = composites[len(composites) // 2] if composites else 0
+        print(
+            f"{name:>14}: {wins}/{n} wins ({100 * wins / n:.1f}%)  "
+            f"median composite {median:.1f}  bands {dict(sorted(bands.items()))}"
+        )
+        if losses:
+            print(f"{'':>14}  losses: {dict(losses.most_common())}")
     print(
-        f"{'random walk':>14}: {wins}/{n} wins ({100 * wins / n:.1f}%)  "
-        f"median composite {median:.1f}  bands {dict(sorted(bands.items()))}"
+        f"{'mixed':>14}: {mixed_wins}/{mixed_n} wins "
+        f"({100 * mixed_wins / mixed_n:.1f}%)"
     )
-    if losses:
-        print(f"{'':>14}  losses: {dict(losses.most_common())}")
 
 
 if __name__ == "__main__":
