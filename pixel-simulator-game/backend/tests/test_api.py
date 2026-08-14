@@ -45,6 +45,36 @@ def _target_for(snap: dict) -> str:
     return f"zone:{snap['nextBeat']['zoneId']}"
 
 
+def _drain(session) -> list:
+    events = []
+    while not session.queue.empty():
+        events.append(session.queue.get_nowait())
+    return events
+
+
+def _wait_settled(client: TestClient, session_id: str, timeout: float = 5.0) -> dict:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        snap = client.get(f"/sessions/{session_id}").json()
+        if snap["phase"] in {"EXPLORE", "GAME_END"}:
+            return snap
+        time.sleep(0.02)
+    raise AssertionError(f"session stuck in phase {snap['phase']!r}")
+
+
+def _play_to_beat(client: TestClient, sid: str, beat_n: int) -> dict:
+    """Advance through beats 1..beat_n-1 so the next interact is that beat."""
+    for _ in range(beat_n - 1):
+        snap = client.get(f"/sessions/{sid}").json()
+        client.post(f"/sessions/{sid}/interact", json={"targetId": _target_for(snap)})
+        snap = _wait_for_phase(client, sid, "AWAIT_DECISION")
+        client.post(
+            f"/sessions/{sid}/decide", json={"optionId": snap["options"][0]["id"]}
+        )
+        _wait_settled(client, sid)
+    return client.get(f"/sessions/{sid}").json()
+
+
 def test_create_session_shape(client):
     data = _create(client)
     assert data["phase"] == "EXPLORE"
@@ -134,6 +164,7 @@ def test_full_nine_beat_run_headless(client):
             f"/sessions/{sid}/decide", json={"optionId": snap["options"][0]["id"]}
         )
         assert res.status_code == 200
+        _wait_settled(client, sid)
 
     snap = client.get(f"/sessions/{sid}").json()
     assert snap["phase"] == "GAME_END"
@@ -173,3 +204,55 @@ def test_event_queue_sequence_and_sse_format(client):
     wire = _format_sse("debate_delta", delta_payload)
     assert wire.startswith("event: debate_delta\ndata: {")
     assert wire.endswith("}\n\n")
+
+
+def test_boardroom_options_before_debate(client):
+    from app.api.sessions import SESSIONS
+
+    data = _create(client, seed=1)
+    sid = data["sessionId"]
+    _play_to_beat(client, sid, 4)
+    _drain(SESSIONS[sid])
+
+    client.post(f"/sessions/{sid}/interact", json={"targetId": "zone:boardroom"})
+    _wait_for_phase(client, sid, "AWAIT_DECISION")
+
+    events = _drain(SESSIONS[sid])
+    types = [t for t, _ in events]
+    assert "options" in types
+    assert "debate_delta" not in types
+    for option in dict(events[types.index("options")][1])["options"]:
+        assert "deltas" not in option
+
+
+def test_boardroom_decide_applies_board_winner_not_motion(client):
+    from app.api.sessions import SESSIONS
+
+    data = _create(client, seed=1)
+    sid = data["sessionId"]
+    _play_to_beat(client, sid, 4)
+    _drain(SESSIONS[sid])
+
+    client.post(f"/sessions/{sid}/interact", json={"targetId": "zone:boardroom"})
+    _wait_for_phase(client, sid, "AWAIT_DECISION")
+    res = client.post(f"/sessions/{sid}/decide", json={"optionId": "4a"})
+    assert res.status_code == 200
+    _wait_settled(client, sid)
+
+    session = SESSIONS[sid]
+    last = session.state["history"][-1]
+    assert last["optionId"] == "4b"
+    assert last["motionId"] == "4a"
+    assert last["ballots"]["cfo"] == "4a"
+    assert last["ballots"]["chair"] == "4b"
+
+    events = _drain(session)
+    types = [t for t, _ in events]
+    assert types.index("convene") < types.index("debate_delta") < types.index("board_vote")
+    assert types.index("board_vote") < types.index("kpi_patch")
+    vote = dict(events[types.index("board_vote")][1])
+    assert vote["motionId"] == "4a"
+    assert vote["winningOptionId"] == "4b"
+    assert "deltas" not in vote
+    for row in vote["votes"]:
+        assert "deltas" not in row

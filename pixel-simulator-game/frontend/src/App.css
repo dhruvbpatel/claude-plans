@@ -225,6 +225,37 @@ body {
   color: #f2a0a8;
 }
 
+.vote-overlay {
+  pointer-events: auto;
+}
+
+.vote-motion,
+.vote-adopt,
+.vote-tie,
+.vote-hint {
+  margin: 0.25rem 0;
+  font-size: 0.8rem;
+}
+
+.vote-rows {
+  margin: 0.35rem 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+}
+
+.vote-adopt {
+  color: #3fd0a4;
+  font-weight: 600;
+}
+
+.vote-hint {
+  color: #8aa0b8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+}
+
 /* --- Scorecard (GAME_END) --- */
 
 .scorecard-backdrop {

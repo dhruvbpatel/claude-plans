@@ -8,10 +8,13 @@ import {
   createTilesetTexture,
 } from './textures';
 import {
+  BOARD_CAMERA,
+  BOARD_SEATS,
   FURNITURE,
   MAP_H,
   MAP_W,
   NPCS,
+  PLAYER_GALLERY,
   PLAYER_PALETTE,
   PLAYER_SPAWN,
   ROOMS,
@@ -23,6 +26,8 @@ import {
 const PLAYER_SPEED = 130;
 const NPC_SPEED = 50;
 const NPC_INTERACT_RADIUS = 42;
+const MEETING_STUCK_MS = 1000;
+const CAMERA_PAN_MS = 700;
 
 type Dir = 'down' | 'left' | 'right' | 'up';
 const DIRS: Dir[] = ['down', 'left', 'right', 'up'];
@@ -58,6 +63,13 @@ export class OfficeScene extends Phaser.Scene {
   private uiLocked = false;
   private currentTarget: InteractTarget | null = null;
   private unsubscribes: (() => void)[] = [];
+  private meeting = false;
+  private seated = false;
+  private leaveWhenIdle = false;
+  private walkingHome = false;
+  private lineQueue: { speakerId: string; text: string }[] = [];
+  private playerTarget: Phaser.Math.Vector2 | null = null;
+  private promptText: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super('OfficeScene');
@@ -68,6 +80,12 @@ export class OfficeScene extends Phaser.Scene {
     this.currentTarget = null;
     this.phaseLocked = false;
     this.uiLocked = false;
+    this.meeting = false;
+    this.seated = false;
+    this.leaveWhenIdle = false;
+    this.walkingHome = false;
+    this.lineQueue = [];
+    this.playerTarget = null;
 
     createTilesetTexture(this);
     createFurnitureTextures(this);
@@ -160,21 +178,39 @@ export class OfficeScene extends Phaser.Scene {
     this.cursors = kb.createCursorKeys();
     this.wasd = kb.addKeys('W,A,S,D') as OfficeScene['wasd'];
     this.keyE = kb.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-    this.input.on('pointerdown', () => this.tryInteract());
+    this.input.on('pointerdown', () => {
+      if (this.meeting && this.seated) this.advanceLine();
+      else this.tryInteract();
+    });
+    kb.on('keydown', () => {
+      if (this.meeting && this.seated) this.advanceLine();
+    });
 
     // --- Bus: input soft-lock + debate speech bubbles (SPEC §6) --------------
     this.unsubscribes.push(
       gameBus.on(GameEvents.PHASE, (payload) => {
         const { phase } = payload as { phase: string };
-        this.phaseLocked = phase !== 'EXPLORE';
-        if (phase === 'EXPLORE') this.clearBubbles();
+        this.phaseLocked = phase !== 'EXPLORE' && phase !== 'GAME_END';
+        if (phase === 'EXPLORE' || phase === 'GAME_END') {
+          if (this.meeting) this.leaveWhenIdle = true;
+          else this.clearBubbles();
+        }
       }),
       gameBus.on(GameEvents.INPUT_LOCK, (payload) => {
         this.uiLocked = Boolean((payload as { locked: boolean }).locked);
       }),
       gameBus.on(GameEvents.SPEECH, (payload) => {
+        if (this.meeting) return;
         const { speakerId, text } = payload as { speakerId: string; text: string };
         this.showSpeech(speakerId, text);
+      }),
+      gameBus.on(GameEvents.DEBATE_LINE, (payload) => {
+        if (!this.meeting) return;
+        const { speakerId, text } = payload as { speakerId: string; text: string };
+        this.lineQueue.push({ speakerId, text });
+      }),
+      gameBus.on(GameEvents.CONVENE, () => {
+        this.startConvene();
       }),
     );
     const unsubAll = () => {
@@ -189,15 +225,20 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   update(time: number) {
+    if (this.leaveWhenIdle && this.lineQueue.length === 0) {
+      this.startWalkOut();
+    }
     this.updatePlayer();
     this.updateNpcs(time);
     this.updatePrompt();
 
-    if (Phaser.Input.Keyboard.JustDown(this.keyE)) this.tryInteract();
+    if (Phaser.Input.Keyboard.JustDown(this.keyE) && !(this.meeting && this.seated)) {
+      this.tryInteract();
+    }
   }
 
   private get locked(): boolean {
-    return this.phaseLocked || this.uiLocked;
+    return this.phaseLocked || this.uiLocked || this.meeting;
   }
 
   // --- Player movement -------------------------------------------------------
@@ -206,6 +247,26 @@ export class OfficeScene extends Phaser.Scene {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     let vx = 0;
     let vy = 0;
+
+    if (this.meeting && this.playerTarget && !this.seated) {
+      const dist = Phaser.Math.Distance.Between(
+        this.player.x, this.player.y, this.playerTarget.x, this.playerTarget.y,
+      );
+      if (dist < 4) {
+        this.player.setPosition(this.playerTarget.x, this.playerTarget.y);
+        this.playerTarget = null;
+        this.facing = PLAYER_GALLERY.face;
+        body.setVelocity(0, 0);
+        this.player.anims.stop();
+        this.player.setFrame(DIR_FRAME[this.facing]);
+      } else {
+        this.physics.moveTo(this.player, this.playerTarget.x, this.playerTarget.y, PLAYER_SPEED);
+        this.facing = this.dirFromVelocity(body.velocity.x, body.velocity.y);
+        this.player.anims.play(`char-player-walk-${this.facing}`, true);
+      }
+      this.player.setDepth(this.player.y + 8);
+      return;
+    }
 
     if (!this.locked) {
       if (this.cursors.left.isDown || this.wasd.A.isDown) vx -= 1;
@@ -239,8 +300,14 @@ export class OfficeScene extends Phaser.Scene {
     for (const npc of this.npcs) {
       const body = npc.sprite.body as Phaser.Physics.Arcade.Body;
 
-      if (this.phaseLocked) {
-        // Freeze wandering during debates so bubbles are easy to follow.
+      if (this.meeting && this.seated) {
+        npc.target = null;
+        body.setVelocity(0, 0);
+        npc.sprite.anims.stop();
+        const face = BOARD_SEATS[npc.id]?.face ?? 'down';
+        npc.sprite.setFrame(DIR_FRAME[face]);
+      } else if (this.phaseLocked && !this.meeting && !this.walkingHome) {
+        // Freeze wandering during non-boardroom debates so bubbles are easy to follow.
         npc.target = null;
         body.setVelocity(0, 0);
         npc.sprite.anims.stop();
@@ -258,14 +325,21 @@ export class OfficeScene extends Phaser.Scene {
           npc.lastY = npc.sprite.y;
           npc.lastProgressAt = time;
         }
-        const stuck = time - npc.lastProgressAt > 900;
+        const stuckMs = this.meeting || this.walkingHome ? MEETING_STUCK_MS : 900;
+        const stuck = time - npc.lastProgressAt > stuckMs;
 
         if (dist < 4 || stuck) {
+          if ((this.meeting || this.walkingHome) && npc.target) {
+            npc.sprite.setPosition(npc.target.x, npc.target.y);
+          }
           npc.target = null;
           body.setVelocity(0, 0);
           npc.nextMoveAt = time + Phaser.Math.Between(1200, 4200);
           npc.sprite.anims.stop();
-          npc.sprite.setFrame(DIR_FRAME.down);
+          const face = this.meeting
+            ? (BOARD_SEATS[npc.id]?.face ?? 'down')
+            : 'down';
+          npc.sprite.setFrame(DIR_FRAME[face]);
         } else {
           this.physics.moveTo(npc.sprite, npc.target.x, npc.target.y, NPC_SPEED);
           const dir = this.dirFromVelocity(body.velocity.x, body.velocity.y);
@@ -296,6 +370,9 @@ export class OfficeScene extends Phaser.Scene {
         }
       }
     }
+
+    if (this.meeting && !this.seated) this.maybeMarkSeated();
+    if (this.walkingHome && this.npcs.every((n) => !n.target)) this.walkingHome = false;
   }
 
   // --- Debate speech bubbles ---------------------------------------------------
@@ -322,9 +399,97 @@ export class OfficeScene extends Phaser.Scene {
     // Linger long enough to read, scaled by length; the next line replaces it.
     npc.bubbleUntil = this.time.now + Math.min(9000, 2200 + text.length * 40);
 
-    // Glance at the speaker; follow resumes when we return to EXPLORE.
-    this.cameras.main.stopFollow();
-    this.cameras.main.pan(npc.sprite.x, npc.sprite.y, 350, 'Sine.easeInOut');
+    if (!this.meeting) {
+      this.cameras.main.stopFollow();
+      this.cameras.main.pan(npc.sprite.x, npc.sprite.y, 350, 'Sine.easeInOut');
+    }
+  }
+
+  private tileCenter(x: number, y: number): Phaser.Math.Vector2 {
+    return new Phaser.Math.Vector2(x * TILE + TILE / 2, y * TILE + TILE / 2);
+  }
+
+  private startConvene() {
+    this.meeting = true;
+    this.seated = false;
+    this.leaveWhenIdle = false;
+    this.walkingHome = false;
+    this.lineQueue = [];
+    this.phaseLocked = true;
+
+    for (const npc of this.npcs) {
+      const seat = BOARD_SEATS[npc.id];
+      if (!seat) continue;
+      npc.target = this.tileCenter(seat.x, seat.y);
+      npc.lastProgressAt = this.time.now;
+      npc.lastX = npc.sprite.x;
+      npc.lastY = npc.sprite.y;
+    }
+    this.playerTarget = this.tileCenter(PLAYER_GALLERY.x, PLAYER_GALLERY.y);
+
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    const focus = this.tileCenter(BOARD_CAMERA.x, BOARD_CAMERA.y);
+    cam.pan(focus.x, focus.y, CAMERA_PAN_MS, 'Sine.easeInOut');
+  }
+
+  private maybeMarkSeated() {
+    const playerReady = !this.playerTarget;
+    const npcsReady = this.npcs.every((n) => !n.target || !BOARD_SEATS[n.id]);
+    if (!playerReady || !npcsReady) return;
+    this.seated = true;
+    this.facing = PLAYER_GALLERY.face;
+    this.player.setFrame(DIR_FRAME[this.facing]);
+    this.showAdvancePrompt();
+  }
+
+  private startWalkOut() {
+    if (!this.meeting && !this.leaveWhenIdle) return;
+    this.leaveWhenIdle = false;
+    this.meeting = false;
+    this.seated = false;
+    this.walkingHome = true;
+    this.playerTarget = null;
+    this.hideAdvancePrompt();
+    this.clearBubbles();
+
+    for (const npc of this.npcs) {
+      const def = NPCS.find((n) => n.id === npc.id);
+      if (!def) continue;
+      npc.target = this.tileCenter(def.spawn.x, def.spawn.y);
+      npc.lastProgressAt = this.time.now;
+      npc.lastX = npc.sprite.x;
+      npc.lastY = npc.sprite.y;
+    }
+  }
+
+  private advanceLine() {
+    if (!this.meeting || !this.seated) return;
+    const next = this.lineQueue.shift();
+    if (!next) return;
+    this.hideAdvancePrompt();
+    this.showSpeech(next.speakerId, next.text);
+  }
+
+  private showAdvancePrompt() {
+    this.hideAdvancePrompt();
+    const focus = this.tileCenter(BOARD_CAMERA.x, BOARD_CAMERA.y + 3);
+    this.promptText = this.add
+      .text(focus.x, focus.y, 'Press any key', {
+        fontFamily: 'monospace',
+        fontSize: '8px',
+        color: '#ffe08a',
+        backgroundColor: 'rgba(13, 18, 25, 0.75)',
+        padding: { x: 4, y: 2 },
+        resolution: 4,
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(20_000);
+  }
+
+  private hideAdvancePrompt() {
+    this.promptText?.destroy();
+    this.promptText = null;
   }
 
   private clearBubbles() {
