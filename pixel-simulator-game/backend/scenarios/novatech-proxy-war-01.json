@@ -1,0 +1,386 @@
+{
+  "id": "novatech-proxy-war-01",
+  "schemaVersion": 2,
+  "title": "NovaTech — Proxy War",
+  "maxQuarters": 8,
+  "metrics": [
+    { "id": "sharePrice", "label": "Share price", "opening": 100, "min": 0, "group": "market" },
+    { "id": "confidence", "label": "Confidence", "opening": 60, "min": 0, "max": 100, "group": "market" },
+    { "id": "reputation", "label": "Reputation", "opening": 55, "min": 0, "max": 100, "group": "market" },
+    { "id": "cash", "label": "Cash ($M)", "opening": 800, "group": "financial" },
+    { "id": "debt", "label": "Debt ($M)", "opening": 300, "min": 0, "group": "financial" },
+    { "id": "revenue", "label": "Revenue ($M)", "opening": 400, "min": 0, "group": "financial" },
+    { "id": "margin", "label": "Margin (%)", "opening": 12, "min": -20, "max": 80, "group": "financial" },
+    { "id": "innovation", "label": "Innovation", "opening": 55, "min": 0, "max": 100, "group": "ops" },
+    { "id": "marketShare", "label": "Market share", "opening": 18, "min": 0, "max": 100, "group": "ops" },
+    { "id": "morale", "label": "Morale", "opening": 60, "min": 0, "max": 100, "group": "people" },
+    { "id": "integrationRisk", "label": "Integration risk", "opening": 0, "min": 0, "max": 100, "group": "risk" },
+    { "id": "regulatoryRisk", "label": "Regulatory risk", "opening": 20, "min": 0, "max": 100, "group": "risk" },
+    { "id": "rivalPressure", "label": "Rival pressure", "opening": 20, "min": 0, "max": 100, "group": "campaign" }
+  ],
+  "cards": [
+    {
+      "id": "share_buyback",
+      "family": "capital_return",
+      "label": "Buy back your own stock",
+      "pros": ["Immediate lift to the share price", "Signals confidence to the market"],
+      "cons": ["Spends cash the turnaround may need", "Does nothing to the operating story"],
+      "deltas": { "cash": -80, "sharePrice": 4, "confidence": 2 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "NovaTech retires shares in the open market; the tape ticks up."
+    },
+    {
+      "id": "debt_buyback",
+      "family": "capital_return",
+      "label": "Buy back your own debt",
+      "pros": ["Shrinks debt, often below face", "Can book a gain if bonds are cheap"],
+      "cons": ["Still spends cash", "Quiet — the market may not notice"],
+      "deltas": { "cash": -40, "debt": -60, "reputation": 1 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "Bonds are lifted below par; leverage eases a notch."
+    },
+    {
+      "id": "equity_raise",
+      "family": "capital_structure",
+      "label": "Sell new shares for cash",
+      "pros": ["Fresh cash without new debt", "Buys time on the balance sheet"],
+      "cons": ["Dilutes every holder", "Reads as an admission of weakness"],
+      "deltas": { "cash": 200, "sharePrice": -6, "confidence": -4, "reputation": -2 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "A follow-on offering lands cash and a weaker tape."
+    },
+    {
+      "id": "debt_paydown",
+      "family": "capital_structure",
+      "label": "Pay debt off outright",
+      "pros": ["Cuts the interest bill every quarter after", "Reassures lenders"],
+      "cons": ["Spends cash on a problem nobody may be asking about", "Opportunity cost vs. the fight in public"],
+      "deltas": { "cash": -100, "debt": -100, "confidence": 1 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "Principal is retired; the interest line shrinks next quarter."
+    },
+    {
+      "id": "cost_reset",
+      "family": "operating",
+      "label": "Cut costs structurally",
+      "pros": ["Rebuilds cash and margin fast", "Easy to sell as fiscal discipline"],
+      "cons": ["Stings morale", "Shaves a little revenue-generating capacity"],
+      "deltas": { "cash": 180, "margin": 1.5, "morale": -3, "revenue": -20 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "A freeze and a round of cuts free up cash; the floor goes quiet."
+    },
+    {
+      "id": "price_increase",
+      "family": "operating",
+      "label": "Raise prices",
+      "pros": ["Helps cash and margin immediately", "No headcount drama"],
+      "cons": ["Customers may walk", "Looks opportunistic if the story is fragile"],
+      "deltas": { "cash": 40, "margin": 1.2, "confidence": -3, "marketShare": -0.5 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "List prices move up; a few accounts push back."
+    },
+    {
+      "id": "retention_package",
+      "family": "people",
+      "label": "Pay key people to stay",
+      "pros": ["The only card that really moves morale", "Keeps the campaign's operators in their seats"],
+      "cons": ["Another cash draw", "Does not fix debt or the tape"],
+      "deltas": { "morale": 15, "cash": -100 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "Stay bonuses hit payroll; the flight-risk list shortens."
+    },
+    {
+      "id": "leadership_renewal",
+      "family": "people",
+      "label": "Change who's in charge",
+      "pros": ["Seizes initiative in a slate fight", "Lifts confidence that the thesis has owners"],
+      "cons": ["Unsettles morale", "Juggling leadership raises integration risk"],
+      "deltas": { "morale": -6, "confidence": 5, "integrationRisk": 5 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "A new slate is named; the org chart redraws itself overnight."
+    },
+    {
+      "id": "trust_campaign",
+      "family": "campaign",
+      "label": "Win the public narrative",
+      "pros": ["Speaks to proxy advisers and the press", "Lifts reputation and confidence"],
+      "cons": ["Costs cash", "Changes nothing about how the business actually runs"],
+      "deltas": { "reputation": 5, "confidence": 4, "cash": -25 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "The open letter and roadshow land; the tape hears a story, not a number."
+    },
+    {
+      "id": "execution_sprint",
+      "family": "campaign",
+      "label": "Push for a quick operating win",
+      "pros": ["Cheap and fast", "Shows near-term discipline"],
+      "cons": ["Small effect", "Leans hard on the team"],
+      "deltas": { "cash": -20, "revenue": 15, "morale": -4, "innovation": 2 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "A 90-day sprint posts a modest print; people are tired."
+    },
+    {
+      "id": "product_bet",
+      "family": "product",
+      "label": "Invest in a real product improvement",
+      "pros": ["Genuine innovation evidence", "Durable vs. a one-quarter price pop"],
+      "cons": ["Real cash", "Squeezes margin while it is being built"],
+      "deltas": { "innovation": 12, "cash": -150, "margin": -1 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "R&D gets a real budget; the roadmap stops being a slide."
+    },
+    {
+      "id": "acquire_challenger",
+      "family": "product",
+      "label": "Buy a smaller rival or disruptor",
+      "pros": ["Biggest single swing: innovation and share", "Can cool a rival's thesis"],
+      "cons": ["Expensive, adds debt", "Stitching the companies creates integration risk", "Once per campaign"],
+      "deltas": { "innovation": 20, "marketShare": 3, "cash": -400, "debt": 200, "integrationRisk": 25 },
+      "requires": [],
+      "unlocks": ["inorganic_live"],
+      "once": true,
+      "consequence": "The challenger is bought; two stacks now have to become one."
+    },
+    {
+      "id": "platform_partnership",
+      "family": "inorganic",
+      "label": "Partner instead of buy",
+      "pros": ["Some of an acquisition's reach without the price tag", "Adds a proof point"],
+      "cons": ["Still adds integration risk", "Takes time to land"],
+      "deltas": { "cash": -40, "marketShare": 1.5, "integrationRisk": 8, "reputation": 2 },
+      "requires": [],
+      "unlocks": ["inorganic_live"],
+      "once": false,
+      "consequence": "A partnership is signed; two roadmaps now have to meet in the middle."
+    },
+    {
+      "id": "integration_push",
+      "family": "inorganic",
+      "label": "Force the pieces to actually work together",
+      "pros": ["Converts integration risk into margin and revenue", "Pays off a prior deal"],
+      "cons": ["Needs a live deal or partnership first", "The team feels the squeeze"],
+      "deltas": { "integrationRisk": -15, "margin": 1.2, "revenue": 30, "morale": -2 },
+      "requires": ["inorganic_live"],
+      "unlocks": [],
+      "once": false,
+      "consequence": "A war-room on integration actually ships a combined SKU."
+    },
+    {
+      "id": "divest_legacy",
+      "family": "portfolio",
+      "label": "Sell off an old business line",
+      "pros": ["Raises cash and de-risks the sheet", "Classic break-up move"],
+      "cons": ["Shrinks revenue and share right now", "Can undercut a growth story"],
+      "deltas": { "cash": 250, "revenue": -50, "marketShare": -2, "debt": -50, "integrationRisk": -10 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "The declining unit is sold; the remaining company is smaller and cleaner."
+    },
+    {
+      "id": "compliance_program",
+      "family": "portfolio",
+      "label": "Clean up governance and regulatory exposure",
+      "pros": ["Lowers regulatory risk", "Buys credibility with proxy advisers"],
+      "cons": ["Slow to show results", "Costs cash"],
+      "deltas": { "cash": -40, "regulatoryRisk": -12, "reputation": 3, "confidence": 1 },
+      "requires": [],
+      "unlocks": [],
+      "once": false,
+      "consequence": "Audits and controls land; the counsel's file gets thinner."
+    }
+  ],
+  "knockOnRules": [
+    {
+      "id": "morale_collapse",
+      "when": { "kpi": "morale", "lt": 40 },
+      "deltas": { "innovation": -6, "revenue": -40 },
+      "news": "Morale collapse hits innovation and revenue."
+    },
+    {
+      "id": "innovation_flywheel",
+      "when": { "kpi": "innovation", "gte": 85 },
+      "deltas": { "confidence": 3 },
+      "news": "Innovation proof starts lifting confidence on its own."
+    },
+    {
+      "id": "integration_drag",
+      "when": { "kpi": "integrationRisk", "gte": 25 },
+      "deltas": { "morale": -5, "margin": -0.8 },
+      "news": "Integration strain drags morale and margin."
+    }
+  ],
+  "eventDeck": [
+    {
+      "id": "sale_thesis",
+      "title": "Sale thesis",
+      "news": "A rival fund goes public with a sale thesis, undermining the turnaround story.",
+      "quarterMin": 0,
+      "quarterMax": 0,
+      "focusMetrics": ["reputation", "confidence"],
+      "interrupt": false
+    },
+    {
+      "id": "soft_earnings",
+      "title": "Soft earnings",
+      "news": "A soft earnings print; the market is impatient for proof.",
+      "quarterMin": 1,
+      "quarterMax": 1,
+      "focusMetrics": ["innovation", "sharePrice"],
+      "interrupt": false
+    },
+    {
+      "id": "nominate_slate",
+      "title": "Rival nominates a short slate",
+      "news": "The rival nominates its own short slate mid-quarter.",
+      "quarterMin": 2,
+      "quarterMax": 2,
+      "focusMetrics": ["confidence", "morale"],
+      "interrupt": true,
+      "interruptCardId": "leadership_renewal"
+    },
+    {
+      "id": "split_bloc",
+      "title": "Board-seat split offer",
+      "news": "Incumbent management offers the rival a board seat to split the activist bloc.",
+      "quarterMin": 3,
+      "quarterMax": 3,
+      "focusMetrics": ["marketShare", "innovation"],
+      "interrupt": false
+    },
+    {
+      "id": "interest_bite",
+      "title": "Interest bites",
+      "news": "Interest on the new debt starts biting.",
+      "quarterMin": 4,
+      "quarterMax": 4,
+      "focusMetrics": ["cash", "debt", "margin"],
+      "interrupt": false
+    },
+    {
+      "id": "morale_warning",
+      "title": "Morale warning",
+      "news": "Morale is close to the collapse line.",
+      "quarterMin": 5,
+      "quarterMax": 5,
+      "focusMetrics": ["morale"],
+      "interrupt": false
+    },
+    {
+      "id": "proxy_season",
+      "title": "Proxy season",
+      "news": "The annual meeting approaches; both funds lobby proxy advisers.",
+      "quarterMin": 6,
+      "quarterMax": 6,
+      "focusMetrics": ["reputation", "confidence"],
+      "interrupt": false
+    },
+    {
+      "id": "the_vote",
+      "title": "The vote",
+      "news": "The vote itself. Last chance to move confidence and reputation.",
+      "quarterMin": 7,
+      "quarterMax": 7,
+      "focusMetrics": ["reputation", "confidence"],
+      "interrupt": false
+    }
+  ],
+  "rival": {
+    "threshold": 55,
+    "defaultPressureDelta": 6,
+    "cardPressure": {
+      "acquire_challenger": -8,
+      "retention_package": -4,
+      "trust_campaign": 6,
+      "product_bet": 7,
+      "leadership_renewal": 6,
+      "cost_reset": 5
+    },
+    "holdOffNews": "The rival watches and holds off.",
+    "attacks": [
+      {
+        "id": "injunction",
+        "title": "Vote delay / injunction",
+        "deltas": { "confidence": -5, "reputation": -3 },
+        "news": "The rival delays the vote and seeks an injunction.",
+        "interrupt": false
+      },
+      {
+        "id": "nominate_slate",
+        "title": "Rival nominates a short slate",
+        "deltas": {},
+        "news": "The rival nominates its own short slate mid-quarter.",
+        "interrupt": true,
+        "interruptCardId": "leadership_renewal"
+      },
+      {
+        "id": "split_offer",
+        "title": "Board-seat split offer",
+        "deltas": {},
+        "news": "Incumbent management offers the rival a board seat to split the activist bloc.",
+        "interrupt": false
+      }
+    ],
+    "secondaryTriggers": [
+      { "kpi": "confidence", "lte": 45, "attackId": "injunction" },
+      { "kpi": "innovation", "lte": 55, "attackId": "injunction" }
+    ]
+  },
+  "scoring": {
+    "winAt": 110,
+    "weights": {
+      "sharePrice": 40,
+      "companyValue": 20,
+      "confidence": 15,
+      "morale": 10,
+      "innovation": 10,
+      "reputation": 5
+    },
+    "earlyFailure": [
+      { "id": "cash", "kpi": "cash", "lt": 0 },
+      { "id": "price_collapse", "kpi": "sharePrice", "ltRatioOfOpening": 0.40 },
+      { "id": "confidence", "kpi": "confidence", "lt": 15 }
+    ],
+    "settle": {
+      "interestRateAnnual": 0.05,
+      "evMultiple": 8,
+      "confidenceToPrice": 0.15,
+      "valueToPrice": 0.10
+    }
+  },
+  "warRoom": {
+    "chair": "chair",
+    "seats": [
+      { "id": "cfo", "name": "CFO", "owns": ["cash", "debt", "margin", "sharePrice"] },
+      { "id": "operator", "name": "Operating Partner", "owns": ["revenue", "marketShare"] },
+      { "id": "cto", "name": "Research / CTO", "owns": ["innovation", "integrationRisk"] },
+      { "id": "hr", "name": "Talent / HR", "owns": ["morale"] },
+      { "id": "gc", "name": "Governance Counsel", "owns": ["regulatoryRisk"] },
+      { "id": "comms", "name": "Communications Lead", "owns": ["reputation"] }
+    ]
+  },
+  "npcs": ["cfo", "operator", "cto", "hr", "gc", "comms", "chair"],
+  "zones": ["lobby", "trading_floor", "war_room", "press_bay"]
+}

@@ -256,3 +256,28 @@ def test_boardroom_decide_applies_board_winner_not_motion(client):
     assert "deltas" not in vote
     for row in vote["votes"]:
         assert "deltas" not in row
+
+
+def test_novatech_quarter_loop(client):
+    res = client.post(
+        "/sessions", json={"scenarioId": "novatech-proxy-war-01", "seed": 4}
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["kpis"]["sharePrice"] == 100
+    sid = data["sessionId"]
+    assert data["nextBeat"]["zoneId"] == "war_room"
+
+    client.post(f"/sessions/{sid}/interact", json={"targetId": "zone:war_room"})
+    snap = _wait_for_phase(client, sid, "AWAIT_DECISION")
+    assert 3 <= len(snap["options"]) <= 4
+    assert "deltas" not in snap["options"][0]
+
+    res = client.post(
+        f"/sessions/{sid}/decide", json={"optionId": snap["options"][0]["id"]}
+    )
+    assert res.status_code == 200
+    settled = _wait_settled(client, sid)
+    assert settled["phase"] in {"EXPLORE", "GAME_END"}
+    assert settled["beatIndex"] == 1
+

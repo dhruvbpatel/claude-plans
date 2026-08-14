@@ -30,6 +30,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.engine.metrics import schema_version
 from app.engine.board_vote import (
     create_board_vote_resolver,
     public_board_vote,
@@ -95,6 +96,21 @@ class Session:
         self.emit("phase", {"phase": phase})
 
     def current_beat(self) -> dict[str, Any] | None:
+        if schema_version(self.scenario) == 2:
+            if self.state.get("outcome") != "playing":
+                return None
+            max_q = int(self.scenario.get("maxQuarters") or 8)
+            if self.state["beatIndex"] >= max_q:
+                return None
+            n = int(self.state["beatIndex"]) + 1
+            return {
+                "id": f"quarter-{n}",
+                "n": n,
+                "title": f"Quarter {n}",
+                "zoneId": "war_room",
+                "npcId": "chair",
+                "situation": self.state.get("lastNews") or "The war room is waiting.",
+            }
         beats = self.scenario["beats"]
         index = self.state["beatIndex"]
         return beats[index] if index < len(beats) else None
@@ -219,7 +235,11 @@ async def interact(session_id: str, req: InteractRequest) -> dict[str, Any]:
         triggers.add(f"npc:{beat['npcId']}")
 
     # Once-per-beat lobby bonus (Phase 6): deterministic, engine-side.
-    if req.targetId == "zone:lobby" and "zone:lobby" not in triggers:
+    if (
+        req.targetId == "zone:lobby"
+        and "zone:lobby" not in triggers
+        and schema_version(session.scenario) != 2
+    ):
         bonus_state = session.engine.apply_lobby_bonus(session.state)
         if bonus_state is not None:
             session.state = bonus_state
@@ -250,6 +270,13 @@ async def _run_beat(session: Session, beat: dict[str, Any]) -> None:
     """BEAT_INTRO -> DEBATE (streamed) -> AWAIT_DECISION."""
     delay = _pacing_delay()
     try:
+        if schema_version(session.scenario) == 2:
+            session.state = session.engine.start_quarter(session.state)
+            beat = session.current_beat() or beat
+            news = session.state.get("lastNews")
+            if news:
+                session.emit("news", {"text": news})
+
         variant = session.selected_variant(beat)
         situation = beat.get("situation", "")
         if variant:
@@ -373,6 +400,13 @@ def _finish_apply(session: Session, new_state: GameState) -> dict[str, Any]:
     session.emit("kpi_patch", {"kpis": dict(new_state["kpis"])})
     if consequence:
         session.emit("news", {"text": consequence})
+    for knock in last.get("knockOns") or []:
+        text = knock.get("news")
+        if text:
+            session.emit("news", {"text": text})
+    rival_news = last.get("rivalNews")
+    if rival_news:
+        session.emit("news", {"text": rival_news})
 
     outcome = new_state.get("outcome", "playing")
     if outcome == "playing":

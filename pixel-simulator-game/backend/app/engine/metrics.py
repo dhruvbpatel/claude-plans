@@ -37,3 +37,17 @@ def openings_from_scenario(scenario: dict[str, Any]) -> dict[str, float]:
     if metrics:
         return {m["id"]: float(m["opening"]) for m in metrics}
     return {k: float(v) for k, v in scenario["kpis"].items()}
+
+
+def clamp_metric(
+    kpi: str,
+    value: float,
+    bounds: dict[str, tuple[float | None, float | None]] | None = None,
+) -> float:
+    table = bounds if bounds is not None else V1_BOUNDS
+    lo, hi = table.get(kpi, (None, None))
+    if lo is not None:
+        value = max(lo, value)
+    if hi is not None:
+        value = min(hi, value)
+    return round(value, 2)
