@@ -13,15 +13,17 @@ import {
   FURNITURE,
   MAP_H,
   MAP_W,
-  NPCS,
   PLAYER_GALLERY,
   PLAYER_PALETTE,
   PLAYER_SPAWN,
   ROOMS,
   ZONES,
   buildGrid,
+  npcsForScenario,
+  type NpcDef,
   type ZoneDef,
 } from './officeMap';
+import { scenarioIdFromUrl } from '../net/session';
 
 const PLAYER_SPEED = 130;
 const NPC_SPEED = 50;
@@ -70,6 +72,7 @@ export class OfficeScene extends Phaser.Scene {
   private lineQueue: { speakerId: string; text: string }[] = [];
   private playerTarget: Phaser.Math.Vector2 | null = null;
   private promptText: Phaser.GameObjects.Text | null = null;
+  private npcDefs: NpcDef[] = [];
 
   constructor() {
     super('OfficeScene');
@@ -86,11 +89,12 @@ export class OfficeScene extends Phaser.Scene {
     this.walkingHome = false;
     this.lineQueue = [];
     this.playerTarget = null;
+    this.npcDefs = npcsForScenario(scenarioIdFromUrl());
 
     createTilesetTexture(this);
     createFurnitureTextures(this);
     createCharacterTexture(this, 'char-player', PLAYER_PALETTE);
-    for (const npc of NPCS) createCharacterTexture(this, `char-${npc.id}`, npc.palette);
+    for (const npc of this.npcDefs) createCharacterTexture(this, `char-${npc.id}`, npc.palette);
 
     // --- Tilemap -----------------------------------------------------------
     const map = this.make.tilemap({ data: buildGrid(), tileWidth: TILE, tileHeight: TILE });
@@ -116,7 +120,7 @@ export class OfficeScene extends Phaser.Scene {
 
     // --- NPCs ---------------------------------------------------------------
     const npcGroup = this.physics.add.group();
-    for (const def of NPCS) {
+    for (const def of this.npcDefs) {
       const key = `char-${def.id}`;
       this.ensureCharAnims(key);
       const sprite = this.physics.add.sprite(
@@ -192,7 +196,10 @@ export class OfficeScene extends Phaser.Scene {
         const { phase } = payload as { phase: string };
         this.phaseLocked = phase !== 'EXPLORE' && phase !== 'GAME_END';
         if (phase === 'EXPLORE' || phase === 'GAME_END') {
-          if (this.meeting) this.leaveWhenIdle = true;
+          // Don't wait for unread debate lines — leftover queue used to
+          // pin `meeting` true and freeze WASD/E after a card pick.
+          this.lineQueue = [];
+          if (this.meeting || this.leaveWhenIdle) this.startWalkOut();
           else this.clearBubbles();
         }
       }),
@@ -300,7 +307,7 @@ export class OfficeScene extends Phaser.Scene {
     for (const npc of this.npcs) {
       const body = npc.sprite.body as Phaser.Physics.Arcade.Body;
 
-      if (this.meeting && this.seated) {
+      if (this.meeting) {
         npc.target = null;
         body.setVelocity(0, 0);
         npc.sprite.anims.stop();
@@ -365,7 +372,7 @@ export class OfficeScene extends Phaser.Scene {
           npc.bubble.destroy();
           npc.bubble = null;
         } else {
-          npc.bubble.setPosition(npc.sprite.x, npc.sprite.y - 22);
+          this.layoutBubble(npc.bubble, npc.sprite);
           npc.bubble.setDepth(10_000 + npc.sprite.y);
         }
       }
@@ -384,24 +391,56 @@ export class OfficeScene extends Phaser.Scene {
 
     npc.bubble?.destroy();
     npc.bubble = this.add
-      .text(npc.sprite.x, npc.sprite.y - 22, text, {
+      .text(npc.sprite.x, npc.sprite.y - 14, text, {
         fontFamily: 'monospace',
         fontSize: '8px',
         color: '#0d1219',
         backgroundColor: '#f4f7fb',
         padding: { x: 4, y: 3 },
-        wordWrap: { width: 150 },
+        wordWrap: { width: 140 },
         align: 'left',
         resolution: 4,
       })
-      .setOrigin(0.5, 1)
       .setDepth(10_000 + npc.sprite.y);
+    this.layoutBubble(npc.bubble, npc.sprite);
     // Linger long enough to read, scaled by length; the next line replaces it.
     npc.bubbleUntil = this.time.now + Math.min(9000, 2200 + text.length * 40);
 
-    if (!this.meeting) {
-      this.cameras.main.stopFollow();
-      this.cameras.main.pan(npc.sprite.x, npc.sprite.y, 350, 'Sine.easeInOut');
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    // Aim a bit below the speaker so an above-head bubble stays in frame.
+    cam.pan(npc.sprite.x, npc.sprite.y + 16, 280, 'Sine.easeInOut');
+  }
+
+  /** Keep a speech bubble inside the current camera view; flip below if the top clips. */
+  private layoutBubble(
+    bubble: Phaser.GameObjects.Text,
+    sprite: Phaser.GameObjects.Sprite,
+  ) {
+    const cam = this.cameras.main;
+    const view = cam.worldView;
+    const pad = 8;
+    const bw = bubble.width;
+    const bh = bubble.height;
+    const aboveY = sprite.y - 12;
+    const belowY = sprite.y + 10;
+    if (aboveY - bh >= view.y + pad) {
+      bubble.setOrigin(0.5, 1);
+      bubble.setPosition(sprite.x, aboveY);
+    } else {
+      bubble.setOrigin(0.5, 0);
+      bubble.setPosition(sprite.x, belowY);
+    }
+    const half = bw / 2;
+    bubble.x = Phaser.Math.Clamp(
+      bubble.x,
+      view.x + pad + half,
+      view.right - pad - half,
+    );
+    const bounds = bubble.getBounds();
+    if (bounds.top < view.y + pad) bubble.y += view.y + pad - bounds.top;
+    if (bounds.bottom > view.bottom - pad) {
+      bubble.y -= bounds.bottom - (view.bottom - pad);
     }
   }
 
@@ -411,21 +450,37 @@ export class OfficeScene extends Phaser.Scene {
 
   private startConvene() {
     this.meeting = true;
-    this.seated = false;
     this.leaveWhenIdle = false;
     this.walkingHome = false;
     this.lineQueue = [];
     this.phaseLocked = true;
+    this.playerTarget = null;
 
+    // Snap onto seats. Walking them in collides with the solid table and
+    // each other, so `seated` never flipped true and the player stayed locked.
     for (const npc of this.npcs) {
       const seat = BOARD_SEATS[npc.id];
       if (!seat) continue;
-      npc.target = this.tileCenter(seat.x, seat.y);
-      npc.lastProgressAt = this.time.now;
-      npc.lastX = npc.sprite.x;
-      npc.lastY = npc.sprite.y;
+      npc.target = null;
+      const body = npc.sprite.body as Phaser.Physics.Arcade.Body;
+      body.enable = false;
+      body.setVelocity(0, 0);
+      const pos = this.tileCenter(seat.x, seat.y);
+      npc.sprite.setPosition(pos.x, pos.y);
+      npc.sprite.anims.stop();
+      npc.sprite.setFrame(DIR_FRAME[seat.face]);
     }
-    this.playerTarget = this.tileCenter(PLAYER_GALLERY.x, PLAYER_GALLERY.y);
+
+    const gallery = this.tileCenter(PLAYER_GALLERY.x, PLAYER_GALLERY.y);
+    const pbody = this.player.body as Phaser.Physics.Arcade.Body;
+    pbody.setVelocity(0, 0);
+    this.player.setPosition(gallery.x, gallery.y);
+    this.facing = PLAYER_GALLERY.face;
+    this.player.anims.stop();
+    this.player.setFrame(DIR_FRAME[this.facing]);
+
+    this.seated = true;
+    this.showAdvancePrompt();
 
     const cam = this.cameras.main;
     cam.stopFollow();
@@ -448,18 +503,24 @@ export class OfficeScene extends Phaser.Scene {
     this.leaveWhenIdle = false;
     this.meeting = false;
     this.seated = false;
-    this.walkingHome = true;
+    this.walkingHome = false;
     this.playerTarget = null;
+    this.lineQueue = [];
     this.hideAdvancePrompt();
     this.clearBubbles();
 
     for (const npc of this.npcs) {
-      const def = NPCS.find((n) => n.id === npc.id);
+      const def = this.npcDefs.find((n) => n.id === npc.id);
       if (!def) continue;
-      npc.target = this.tileCenter(def.spawn.x, def.spawn.y);
-      npc.lastProgressAt = this.time.now;
-      npc.lastX = npc.sprite.x;
-      npc.lastY = npc.sprite.y;
+      npc.target = null;
+      const body = npc.sprite.body as Phaser.Physics.Arcade.Body;
+      body.enable = true;
+      body.setVelocity(0, 0);
+      const pos = this.tileCenter(def.spawn.x, def.spawn.y);
+      npc.sprite.setPosition(pos.x, pos.y);
+      npc.sprite.anims.stop();
+      npc.sprite.setFrame(DIR_FRAME.down);
+      npc.nextMoveAt = this.time.now + Phaser.Math.Between(800, 2200);
     }
   }
 
@@ -516,7 +577,7 @@ export class OfficeScene extends Phaser.Scene {
       }
     }
     if (best) {
-      const def = NPCS.find((n) => n.id === best!.npc.id)!;
+      const def = this.npcDefs.find((n) => n.id === best!.npc.id)!;
       return { targetId: `npc:${best.npc.id}`, label: `Talk to ${def.name}` };
     }
 

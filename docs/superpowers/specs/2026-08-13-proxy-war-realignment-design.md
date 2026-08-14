@@ -92,9 +92,9 @@ Headless tests never wait on Phaser, walking, or keys.
 
 ### 6.1 Pixel loop
 
-Walk / collide / `E` interact is unchanged. The war-room cutscene reuses the boardroom gather: NPCs walk to authored seats, player is gallery-locked, lines advance on key/click, then cards appear. After `APPLY`, NPCs walk back and wander.
+Walk / collide / `E` interact is unchanged. **Pressing E snaps the debate seats and player to the table** (no walk-in). Walking-in collided with the solid table and never flipped `seated`, which froze WASD/E. After `APPLY`, NPCs snap home and resume wandering. Lines still advance on key/click; cards appear after `war_room`.
 
-Meridian boardroom path is unchanged for v1.
+Meridian boardroom path is unchanged for v1 (motion first, then debate, board vote applies).
 
 ### 6.2 `GameState` additions (v2)
 
@@ -712,7 +712,9 @@ v1 files keep today’s shape (`kpis`, `beats`, `winCondition`, `loseConditions`
 - Scorecard: weighted composite breakdown + band, not Meridian A–F (v1 still shows grade).
 - News ticker: quarter news, rival attacks, knock-on triggers (existing `news` events).
 - Card overlay unchanged except it must layout 4 cards on interrupt.
-- Reuse gather / key-advance / walk-out. Cards show **after** `war_room`, not before (v2). v1 boardroom still shows cards first.
+- Reuse **snap** convene / key-advance / snap-home. Cards show **after** `war_room`, not before (v2). v1 boardroom still shows cards first.
+- NovaTech spawns only the seven debate sprites (chair + six seats). Meridian `ceo` / `analyst` / `partner` spawn only on the v1 scenario.
+- Board table sits mid-room; speech bubbles clamp into the camera (flip below the speaker if the top would clip).
 
 ## 16. Phasing
 
@@ -760,4 +762,14 @@ Phase 6 frontend:
 - Early failure lines fire; composite ≥110 is the win.
 - Meridian tests remain green throughout.
 - Mixed-strategy simulate win rate in 40–60% after Phase 5.
+
+## 19. Shipped notes (post Phase 6)
+
+Playability fixes on this branch, not in the original phase list:
+
+- **Snap convene / snap home** instead of walking. Root cause: arcade collisions with the solid `board_table` and other NPCs prevented `seated` from becoming true, so `meeting` stayed on and locked movement after Q1.
+- **Canvas focus** restored on `EXPLORE` so HTML option-card clicks do not steal WASD.
+- **Cast:** `npcsForScenario()` — NovaTech = `cfo, operator, cto, hr, gc, comms, chair`. Dual “Research / CTO” was Meridian `analyst` plus NovaTech `cto` on the same map.
+- **Bubbles:** table moved from y=3 to y=6; `layoutBubble` keeps text inside `camera.worldView`.
+
 )

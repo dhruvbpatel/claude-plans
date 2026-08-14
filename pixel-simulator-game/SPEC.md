@@ -1,6 +1,13 @@
 # Activist Pixel Sim — SPEC
 
-Agent implementation bible for the Meridian Dynamics activist-investor pixel RPG. Keep `ScoringEngine` / `DebateProvider` contracts stable so teammate FastAPI or line-graph swarm code can drop in without reshaping the tree.
+Agent implementation bible for the **Meridian Dynamics** (v1) 9-beat campaign.
+
+**NovaTech / v2 is the default shipped game.** See
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and
+[`../docs/superpowers/specs/2026-08-13-proxy-war-realignment-design.md`](../docs/superpowers/specs/2026-08-13-proxy-war-realignment-design.md).
+This file remains the Meridian contract so v1 tests and `?scenario=meridian-activist-01` stay stable.
+
+Keep `ScoringEngine` / `DebateProvider` contracts stable so teammate FastAPI or swarm code can drop in without reshaping the tree.
 
 ---
 
