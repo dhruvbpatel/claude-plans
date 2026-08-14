@@ -54,6 +54,20 @@ def test_novatech_same_seed_replays():
     assert a["outcome"] == b["outcome"]
 
 
+def test_novatech_interrupt_quarter_deals_four():
+    scenario = json.loads(SCENARIO_PATH.read_text())
+    engine = MeridianScoringEngine()
+    state = engine.create(scenario, seed=0)
+    # Quarters 0 and 1 have no interrupt; quarter 2 (nominate_slate) does.
+    for _ in range(2):
+        state = engine.start_quarter(state)
+        state = engine.apply(state, engine.available_options(state)[0]["id"])
+    state = engine.start_quarter(state)
+    assert state["interrupt"] is True
+    assert len(state["hand"]) == 4
+    assert "leadership_renewal" in state["hand"]
+
+
 def test_novatech_random_walk_terminates():
     scenario = json.loads(SCENARIO_PATH.read_text())
     engine = MeridianScoringEngine()

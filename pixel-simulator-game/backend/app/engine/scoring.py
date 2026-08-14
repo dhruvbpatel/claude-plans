@@ -263,6 +263,12 @@ class MeridianScoringEngine:
             new_state["pendingInterruptCardId"] = str(
                 rival_resp.get("interruptCardId") or ""
             )
+        attack_id = rival_resp.get("attackId")
+        if attack_id:
+            fired = list(new_state.get("firedAttackIds") or [])
+            if attack_id not in fired:
+                fired.append(str(attack_id))
+            new_state["firedAttackIds"] = fired
 
         played = list(new_state.get("playedCardIds") or [])
         if option_id not in played:
