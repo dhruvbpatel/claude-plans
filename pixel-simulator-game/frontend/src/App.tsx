@@ -8,6 +8,7 @@ import { OptionCards } from './ui/OptionCards';
 import { Scorecard } from './ui/Scorecard';
 import { SidePanel } from './ui/SidePanel';
 import { ToastLog } from './ui/ToastLog';
+import { WarRoomOverlay } from './ui/WarRoomOverlay';
 import './App.css';
 
 function App() {
@@ -20,7 +21,7 @@ function App() {
       <header className="hud">
         <h1>Activist Pixel Sim</h1>
         <p className="hud-sub">
-          Meridian Dynamics HQ — WASD / arrows to walk, <kbd>E</kbd> or click to interact
+          NovaTech HQ — WASD / arrows to walk, <kbd>E</kbd> or click to interact
         </p>
       </header>
       <main className="stage">
@@ -29,6 +30,7 @@ function App() {
           <InteractPrompt />
           <ToastLog />
           <OptionCards />
+          <WarRoomOverlay />
           <BoardVoteOverlay />
           <Scorecard />
         </div>

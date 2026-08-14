@@ -17,10 +17,10 @@ const ZONE_LABELS: Record<string, string> = {
   lobby: 'Lobby',
   trading_floor: 'Trading Floor',
   war_room: 'War Room',
-  ceo_office: 'CEO Office',
-  cfo_office: 'CFO Office',
-  gc_office: 'GC Office',
-  boardroom: 'Boardroom',
+  ceo_office: 'Research',
+  cfo_office: 'Capital Markets',
+  gc_office: 'Counsel',
+  boardroom: 'War Room Table',
   press_bay: 'Press Bay',
 };
 
@@ -46,6 +46,15 @@ function seedFromUrl(): number | undefined {
   return Number.isSafeInteger(n) && n >= 0 ? n : undefined;
 }
 
+/** Scenario id: `?scenario=` overrides `VITE_SCENARIO_ID`, else NovaTech. */
+export function scenarioIdFromUrl(): string {
+  const raw = new URLSearchParams(window.location.search).get('scenario');
+  if (raw && raw.trim()) return raw.trim();
+  const env = (import.meta as { env?: { VITE_SCENARIO_ID?: string } }).env
+    ?.VITE_SCENARIO_ID;
+  return env && env.trim() ? env.trim() : 'novatech-proxy-war-01';
+}
+
 /** Idempotent boot (React StrictMode double-mounts effects in dev). */
 export function startSession(): void {
   if (started) return;
@@ -60,7 +69,7 @@ async function boot(): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        scenarioId: 'meridian-activist-01',
+        scenarioId: scenarioIdFromUrl(),
         ...(seed !== undefined ? { seed } : {}),
       }),
     });
@@ -98,6 +107,7 @@ function connectEvents(id: string): void {
   });
   forward('convene', GameEvents.CONVENE);
   forward('board_vote', GameEvents.BOARD_VOTE);
+  forward('war_room', GameEvents.WAR_ROOM);
   forward('kpi_patch', GameEvents.KPI);
   forward('options', GameEvents.OPTIONS);
   forward('news', GameEvents.NEWS);

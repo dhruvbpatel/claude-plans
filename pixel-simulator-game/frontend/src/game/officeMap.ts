@@ -1,9 +1,9 @@
 import { TILES, type CharPalette } from './textures';
 
 /**
- * Meridian Dynamics HQ layout, in tile coordinates (16px tiles).
+ * NovaTech HQ layout, in tile coordinates (16px tiles).
  * World: 60 x 40 tiles = 960 x 640 px.
- * Zone and NPC IDs match SPEC.md §7 exactly.
+ * Meridian ids remain so `?scenario=meridian-activist-01` still maps.
  */
 
 export const MAP_W = 60;
@@ -22,17 +22,17 @@ export interface RoomDef {
 
 export const ROOMS: RoomDef[] = [
   {
-    id: 'war_room', label: 'War Room',
+    id: 'war_room', label: 'Strategy Room',
     x0: 0, y0: 0, x1: 17, y1: 11, floor: TILES.WAR,
     doors: [{ x: 8, y: 11 }, { x: 9, y: 11 }],
   },
   {
-    id: 'boardroom', label: 'Boardroom',
+    id: 'boardroom', label: 'War Room',
     x0: 17, y0: 0, x1: 42, y1: 11, floor: TILES.BOARD,
     doors: [{ x: 29, y: 11 }, { x: 30, y: 11 }],
   },
   {
-    id: 'ceo_office', label: 'CEO Office',
+    id: 'ceo_office', label: 'Research',
     x0: 42, y0: 0, x1: 59, y1: 11, floor: TILES.CEO,
     doors: [{ x: 50, y: 11 }, { x: 51, y: 11 }],
   },
@@ -42,12 +42,12 @@ export const ROOMS: RoomDef[] = [
     doors: [{ x: 11, y: 14 }, { x: 12, y: 14 }, { x: 24, y: 20 }, { x: 24, y: 21 }],
   },
   {
-    id: 'cfo_office', label: 'CFO Office',
+    id: 'cfo_office', label: 'Capital Markets',
     x0: 41, y0: 14, x1: 59, y1: 21, floor: TILES.CFO,
     doors: [{ x: 41, y: 17 }, { x: 41, y: 18 }],
   },
   {
-    id: 'gc_office', label: 'GC Office',
+    id: 'gc_office', label: 'Counsel',
     x0: 41, y0: 21, x1: 59, y1: 28, floor: TILES.GC,
     doors: [{ x: 41, y: 24 }, { x: 41, y: 25 }],
   },
@@ -148,19 +148,39 @@ export const NPCS: NpcDef[] = [
     palette: { skin: '#e8b98a', hair: '#1f1b18', shirt: '#6b2f3a', pants: '#33222a' },
   },
   {
-    id: 'chair', name: 'Independent Chair', spawn: { x: 30, y: 8 },
+    id: 'chair', name: 'Chair', spawn: { x: 30, y: 8 },
     wander: { x0: 19, y0: 7, x1: 40, y1: 10 },
     palette: { skin: '#f0c8a0', hair: '#e8e4dc', shirt: '#4a5d3a', pants: '#3a3328' },
   },
   {
-    id: 'analyst', name: 'Your Analyst', spawn: { x: 13, y: 20 },
+    id: 'analyst', name: 'Research / CTO', spawn: { x: 13, y: 20 },
     wander: { x0: 2, y0: 16, x1: 21, y1: 25 },
     palette: { skin: '#b97a50', hair: '#2a241f', shirt: '#2f8f7a', pants: '#3d4450' },
   },
   {
-    id: 'partner', name: 'Activist Partner', spawn: { x: 7, y: 8 },
+    id: 'partner', name: 'Operating Partner', spawn: { x: 7, y: 8 },
     wander: { x0: 2, y0: 3, x1: 14, y1: 9 },
     palette: { skin: '#e8b98a', hair: '#5a3a28', shirt: '#5d3a78', pants: '#2e2440' },
+  },
+  {
+    id: 'operator', name: 'Operating Partner', spawn: { x: 9, y: 6 },
+    wander: { x0: 2, y0: 3, x1: 14, y1: 9 },
+    palette: { skin: '#e8b98a', hair: '#5a3a28', shirt: '#5d3a78', pants: '#2e2440' },
+  },
+  {
+    id: 'cto', name: 'Research / CTO', spawn: { x: 15, y: 18 },
+    wander: { x0: 2, y0: 16, x1: 21, y1: 25 },
+    palette: { skin: '#b97a50', hair: '#2a241f', shirt: '#2f8f7a', pants: '#3d4450' },
+  },
+  {
+    id: 'hr', name: 'Talent / HR', spawn: { x: 52, y: 8 },
+    wander: { x0: 44, y0: 3, x1: 57, y1: 9 },
+    palette: { skin: '#f0c8a0', hair: '#9aa0a8', shirt: '#3a3f4a', pants: '#2b2f38' },
+  },
+  {
+    id: 'comms', name: 'Communications', spawn: { x: 10, y: 32 },
+    wander: { x0: 2, y0: 30, x1: 20, y1: 37 },
+    palette: { skin: '#e8b98a', hair: '#3a2a20', shirt: '#8a5a28', pants: '#2a2420' },
   },
 ];
 
@@ -183,6 +203,7 @@ export const FURNITURE: FurnitureDef[] = [
   { texture: 'chair', x: 29, y: 5, solid: false },
   { texture: 'chair', x: 32, y: 5, solid: false },
   { texture: 'chair', x: 35, y: 3, solid: false },
+  { texture: 'chair', x: 35, y: 5, solid: false },
   { texture: 'plant', x: 18, y: 1, solid: false },
   { texture: 'plant', x: 41, y: 9, solid: false },
   // CEO office
@@ -257,6 +278,10 @@ export const BOARD_SEATS: Record<string, SeatDef> = {
   gc: { x: 32, y: 1, face: 'down' },
   analyst: { x: 26, y: 5, face: 'up' },
   partner: { x: 29, y: 5, face: 'up' },
+  hr: { x: 26, y: 1, face: 'down' },
+  operator: { x: 29, y: 5, face: 'up' },
+  cto: { x: 26, y: 5, face: 'up' },
+  comms: { x: 35, y: 5, face: 'up' },
 };
 
 export const PLAYER_GALLERY: SeatDef = { x: 32, y: 5, face: 'up' };

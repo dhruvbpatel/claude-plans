@@ -8,12 +8,24 @@ interface HistoryEntry {
   consequence: string;
 }
 
+interface BreakdownRow {
+  metricId: string;
+  weight: number;
+  opening: number;
+  current: number;
+  ratio: number;
+  contribution: number;
+}
+
 interface GameEnd {
   outcome: string;
   grade: string;
   summary: {
     kpis: Record<string, number>;
     history: HistoryEntry[];
+    composite?: number;
+    band?: string;
+    breakdown?: BreakdownRow[];
   };
 }
 
@@ -23,9 +35,23 @@ const KPI_LABELS: Record<string, string> = {
   ownershipPct: 'Ownership %',
   warChest: 'War Chest',
   mediaHeat: 'Media Heat',
+  sharePrice: 'Share price',
+  confidence: 'Confidence',
+  reputation: 'Reputation',
+  cash: 'Cash',
+  debt: 'Debt',
+  revenue: 'Revenue',
+  margin: 'Margin',
+  innovation: 'Innovation',
+  marketShare: 'Market share',
+  morale: 'Morale',
+  integrationRisk: 'Integration risk',
+  regulatoryRisk: 'Regulatory risk',
+  rivalPressure: 'Rival pressure',
+  companyValue: 'Company value',
 };
 
-/** End-of-game scorecard overlay: grade, final KPIs, campaign history. */
+/** End-of-game scorecard overlay: grade or composite breakdown, history. */
 export function Scorecard() {
   const [end, setEnd] = useState<GameEnd | null>(null);
 
@@ -35,6 +61,9 @@ export function Scorecard() {
 
   const won = end.outcome === 'won';
   const seed = getSeed();
+  const breakdown = end.summary.breakdown;
+  const composite = end.summary.composite;
+  const band = end.summary.band;
 
   const replay = (keepSeed: boolean) => {
     const url = new URL(window.location.href);
@@ -49,16 +78,35 @@ export function Scorecard() {
         <p className={`scorecard-outcome ${won ? 'won' : 'lost'}`}>
           {won ? 'CAMPAIGN WON' : 'CAMPAIGN LOST'}
         </p>
-        <p className="scorecard-grade">{end.grade}</p>
+        <p className="scorecard-grade">
+          {composite !== undefined
+            ? `${composite.toFixed(1)} · ${band ?? end.grade}`
+            : end.grade}
+        </p>
 
-        <div className="scorecard-kpis">
-          {Object.entries(end.summary.kpis).map(([key, value]) => (
-            <div key={key} className="scorecard-kpi">
-              <span>{KPI_LABELS[key] ?? key}</span>
-              <strong>{key === 'stockPrice' ? `$${value.toFixed(2)}` : value}</strong>
-            </div>
-          ))}
-        </div>
+        {breakdown && breakdown.length > 0 ? (
+          <div className="scorecard-kpis">
+            {breakdown.map((row) => (
+              <div key={row.metricId} className="scorecard-kpi">
+                <span>
+                  {KPI_LABELS[row.metricId] ?? row.metricId} ({row.weight})
+                </span>
+                <strong>
+                  {(row.ratio * 100).toFixed(0)}% → {row.contribution.toFixed(1)}
+                </strong>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="scorecard-kpis">
+            {Object.entries(end.summary.kpis).map(([key, value]) => (
+              <div key={key} className="scorecard-kpi">
+                <span>{KPI_LABELS[key] ?? key}</span>
+                <strong>{key === 'stockPrice' ? `$${value.toFixed(2)}` : value}</strong>
+              </div>
+            ))}
+          </div>
+        )}
 
         <ol className="scorecard-history">
           {end.summary.history.map((entry, i) => (

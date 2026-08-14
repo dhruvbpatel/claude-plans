@@ -35,5 +35,6 @@ export const GameEvents = {
   INPUT_LOCK: 'ui:inputLock',
   CONVENE: 'game:convene',
   BOARD_VOTE: 'game:boardVote',
+  WAR_ROOM: 'game:warRoom',
   DEBATE_LINE: 'game:debateLine',
 } as const;
