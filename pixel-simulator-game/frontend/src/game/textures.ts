@@ -182,12 +182,12 @@ export function createFurnitureTextures(scene: Phaser.Scene): void {
     rect(ctx, 38, 14, 6, 4, '#e8e4dc');
   });
 
-  makeTexture(scene, 'board_table', 160, 32, (ctx) => {
-    rect(ctx, 4, 4, 152, 24, '#5d3f2a');
-    rect(ctx, 4, 4, 152, 5, '#6f4c32');
-    rect(ctx, 8, 14, 144, 4, '#4e3523');
-    rect(ctx, 4, 26, 152, 2, '#412c1c');
-    for (const px of [20, 52, 84, 116, 140]) rect(ctx, px, 11, 5, 3, '#e8e4dc');
+  makeTexture(scene, 'board_table', 224, 32, (ctx) => {
+    rect(ctx, 4, 4, 216, 24, '#5d3f2a');
+    rect(ctx, 4, 4, 216, 5, '#6f4c32');
+    rect(ctx, 8, 14, 208, 4, '#4e3523');
+    rect(ctx, 4, 26, 216, 2, '#412c1c');
+    for (const px of [20, 56, 92, 128, 164, 200]) rect(ctx, px, 11, 5, 3, '#e8e4dc');
   });
 
   makeTexture(scene, 'chair', 16, 16, (ctx) => {

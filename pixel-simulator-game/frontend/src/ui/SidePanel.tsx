@@ -74,7 +74,8 @@ export function SidePanel() {
   const [nextBeat, setNextBeat] = useState<NextBeatHint | null>(null);
   const [seed, setSeed] = useState<number | null>(null);
   const [devLock, setDevLock] = useState(false);
-  const transcriptEnd = useRef<HTMLDivElement>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
   const deltaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -110,8 +111,15 @@ export function SidePanel() {
   }, []);
 
   useEffect(() => {
-    transcriptEnd.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const el = transcriptRef.current;
+    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
   }, [transcript]);
+
+  const onTranscriptScroll = () => {
+    const el = transcriptRef.current;
+    if (!el) return;
+    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  };
 
   const toggleDevLock = (locked: boolean) => {
     setDevLock(locked);
@@ -192,7 +200,7 @@ export function SidePanel() {
         </div>
       )}
 
-      <div className="panel-section panel-transcript">
+      <div className="panel-section panel-transcript" ref={transcriptRef} onScroll={onTranscriptScroll}>
         <h2>Transcript</h2>
         {transcript.length === 0 ? (
           <p className="placeholder">
@@ -207,7 +215,6 @@ export function SidePanel() {
             ))}
           </ul>
         )}
-        <div ref={transcriptEnd} />
       </div>
 
       <div className="panel-section">

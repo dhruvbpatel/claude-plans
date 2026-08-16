@@ -30,6 +30,8 @@ const NPC_SPEED = 50;
 const NPC_INTERACT_RADIUS = 42;
 const MEETING_STUCK_MS = 1000;
 const CAMERA_PAN_MS = 700;
+const EXPLORE_ZOOM = 2;
+const MEETING_ZOOM = 1.4;
 
 type Dir = 'down' | 'left' | 'right' | 'up';
 const DIRS: Dir[] = ['down', 'left', 'right', 'up'];
@@ -173,7 +175,7 @@ export class OfficeScene extends Phaser.Scene {
     // --- Camera --------------------------------------------------------------
     const cam = this.cameras.main;
     cam.setBounds(0, 0, MAP_W * TILE, MAP_H * TILE);
-    cam.setZoom(2);
+    cam.setZoom(EXPLORE_ZOOM);
     cam.startFollow(this.player, true, 0.12, 0.12);
     cam.fadeIn(300);
 
@@ -389,7 +391,15 @@ export class OfficeScene extends Phaser.Scene {
     const npc = this.npcs.find((n) => n.id === speakerId);
     if (!npc) return;
 
-    npc.bubble?.destroy();
+    if (this.meeting) {
+      // Sequential debate: exactly one speaker's bubble on screen at a time.
+      for (const other of this.npcs) {
+        other.bubble?.destroy();
+        other.bubble = null;
+      }
+    } else {
+      npc.bubble?.destroy();
+    }
     npc.bubble = this.add
       .text(npc.sprite.x, npc.sprite.y - 14, text, {
         fontFamily: 'monospace',
@@ -406,10 +416,12 @@ export class OfficeScene extends Phaser.Scene {
     // Linger long enough to read, scaled by length; the next line replaces it.
     npc.bubbleUntil = this.time.now + Math.min(9000, 2200 + text.length * 40);
 
-    const cam = this.cameras.main;
-    cam.stopFollow();
-    // Aim a bit below the speaker so an above-head bubble stays in frame.
-    cam.pan(npc.sprite.x, npc.sprite.y + 16, 280, 'Sine.easeInOut');
+    if (!this.meeting) {
+      const cam = this.cameras.main;
+      cam.stopFollow();
+      // Aim a bit below the speaker so an above-head bubble stays in frame.
+      cam.pan(npc.sprite.x, npc.sprite.y + 16, 280, 'Sine.easeInOut');
+    }
   }
 
   /** Keep a speech bubble inside the current camera view; flip below if the top clips. */
@@ -486,6 +498,7 @@ export class OfficeScene extends Phaser.Scene {
     cam.stopFollow();
     const focus = this.tileCenter(BOARD_CAMERA.x, BOARD_CAMERA.y);
     cam.pan(focus.x, focus.y, CAMERA_PAN_MS, 'Sine.easeInOut');
+    cam.zoomTo(MEETING_ZOOM, CAMERA_PAN_MS, 'Sine.easeInOut');
   }
 
   private maybeMarkSeated() {
@@ -507,6 +520,7 @@ export class OfficeScene extends Phaser.Scene {
     this.playerTarget = null;
     this.lineQueue = [];
     this.hideAdvancePrompt();
+    this.cameras.main.zoomTo(EXPLORE_ZOOM, CAMERA_PAN_MS, 'Sine.easeInOut');
     this.clearBubbles();
 
     for (const npc of this.npcs) {
