@@ -113,6 +113,28 @@ def test_every_beat_has_an_ungated_option(scenario):
             assert any(not o["requires"] for o in pool), beat["id"]
 
 
+VOTERS = ("chair", "ceo", "cfo", "gc")
+
+
+def test_boardroom_beats_have_authored_ballots(scenario):
+    expected = {
+        "beat-4": {"chair": "4b", "ceo": "4b", "cfo": "4a", "gc": "4b"},
+        "beat-7": {"chair": "7a", "ceo": "7a", "cfo": "7a", "gc": "7b"},
+        "beat-9": {"chair": "9c", "ceo": "9c", "cfo": "9c", "gc": "9c"},
+    }
+    by_id = {b["id"]: b for b in scenario["beats"]}
+    for beat in scenario["beats"]:
+        if beat["zoneId"] != "boardroom":
+            assert "boardVote" not in beat
+            continue
+        vote = beat["boardVote"]
+        assert list(vote["voters"]) == list(VOTERS)
+        assert vote["ballots"] == expected[beat["id"]]
+        option_ids = {o["id"] for o in beat["options"]}
+        assert set(vote["ballots"].values()) <= option_ids
+        assert by_id[beat["id"]]["zoneId"] == "boardroom"
+
+
 def test_all_required_flags_are_unlockable(scenario):
     """Every flag referenced in ``requires`` is unlocked by some earlier beat."""
     unlocked: set[str] = set()
