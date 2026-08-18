@@ -10,49 +10,48 @@ Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). NovaTech design: [
 
 ## How to run
 
-You need **two terminals**. Backend on `:8000`, frontend on `:5173`. Vite proxies `/health` and `/sessions` to the API, so the browser only talks to `:5173`.
-
-### 1. Backend
+You need **Python 3**, **Node.js** (npm), and **two terminals**. Backend on `:8000`, frontend on `:5173`. Vite proxies `/health` and `/sessions` to the API, so the browser only talks to `:5173`.
 
 From `pixel-simulator-game/`:
 
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp ../.env.example ../.env         # optional; defaults need no API key
-uvicorn app.main:app --reload --port 8000
-```
-
-If you already created a venv named `venv/` instead of `.venv/`, activate that and skip `python3 -m venv`.
-
-Health check: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) → `{"status":"ok","debate_provider":"deterministic"}`.
-
-### 2. Frontend
+**macOS / Linux**
 
 ```bash
-cd frontend
-npm install
-npm run dev
+./run-backend.sh     # terminal 1 — venv, pip install, uvicorn :8000
+./run-frontend.sh    # terminal 2 — npm install, Vite :5173
 ```
+
+**Windows** (Command Prompt, or double-click the `.bat` files)
+
+```bat
+run-backend.bat
+run-frontend.bat
+```
+
+Each script is idempotent: it creates `backend/.venv` if missing (or reuses `backend/venv/`), installs dependencies, copies `.env.example` to `.env` when needed, then starts the service.
 
 Open **[http://localhost:5173](http://localhost:5173)**. Leave both processes running.
 
+Health check: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) → `{"status":"ok","debate_provider":"deterministic"}`.
+
 Replay a seeded run: `http://localhost:5173/?seed=42`.
 
-### 3. How to play (NovaTech)
+## How to play (NovaTech)
+
+On load you get a briefing, then an in-engine camera tour of rooms and board members. **Continue** starts the tour; **Skip** jumps into play. Replay the tour later with **Help (`?`)** in the HUD (only while exploring, not mid-debate).
 
 - **Move:** WASD or arrow keys. **Interact:** `E` or click a yellow zone pad / NPC.
 - Walk to the **Boardroom** or **War Room** pad (or a debate NPC) and press **E**.
-- The camera cuts to the table; the seven debate seats snap in. **Any key or click** advances a debate line.
+- Debate lines play in the **dock under the map** (speaker, line, `4 / 12` counter). ◀ / ▶ or Left / Right / Space browse at your pace; the in-world bubble mirrors the dock. Options appear only after the last line **and** **Enter**.
 - Pick a card (pros/cons only). You may follow or defy the chair. That card is what scores.
 - After the quarter resolves, walk back to the pad for the next quarter (8 total).
+- **Transcript (`T`)** or the sidebar “Recent” strip opens a full-history drawer (Esc closes). Unread lines stay gated.
+- The canvas fills the stage; larger windows show more map at the same integer pixel scale.
 - Soft-lock input checkbox in the side panel is a **dev** tool — leave it unchecked.
 
-Meridian (`?scenario=meridian-activist-01`): office beats debate-then-cards; boardroom beats 4 / 7 / 9 are motion-then-vote (board’s choice scores).
+Meridian (`?scenario=meridian-activist-01`): office beats debate-then-cards; boardroom beats 4 / 7 / 9 are motion-then-vote (board’s choice scores). Some boardroom beats have no debate — vote in the dock, then **Enter**.
 
-### Tests
+## Tests
 
 ```bash
 cd backend
@@ -61,7 +60,7 @@ python scripts/simulate.py          # headless balance / replay
 cd ../frontend && npm run build
 ```
 
-### Env
+## Env
 
 Copy `.env.example` to `.env` (gitignored). Defaults need **no API key**.
 
@@ -81,6 +80,8 @@ Never commit `.env`, `venv/`, `.venv/`, or API keys.
 ## Layout
 
 ```
+run-backend.sh / .bat     # venv + uvicorn :8000
+run-frontend.sh / .bat    # npm + Vite :5173
 frontend/                 # Vite + React + Phaser 3
 backend/
   app/main.py             # FastAPI + CORS + /health
@@ -107,7 +108,10 @@ SPEC.md                   # Meridian v1 bible
 | War room | 6 seats + chair; forced dissent; player may defy |
 | Rival | Pressure gauge; attacks / interrupts from scenario JSON |
 | Providers | Deterministic defaults; swarm / gateway are plug points |
-| Office | Phaser tilemap, WASD, 7 NovaTech NPCs, clamped speech bubbles |
+| Office | Phaser tilemap, WASD, 7 NovaTech NPCs; canvas fills the stage |
+| Onboarding | Intro briefing + skippable camera tour; Help (`?`) replays |
+| Debate dock | Player-paced lines under the map; options gated until last line + Enter |
+| Transcript | Full-history drawer (`T`); sidebar shows recent lines only |
 
 ## Docs
 

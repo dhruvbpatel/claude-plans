@@ -4,14 +4,9 @@
  * API shapes per SPEC.md §5; bus names per SPEC.md §6.
  */
 import { GameEvents, gameBus } from '../game/eventBus';
+import type { NextBeatHint } from '../types';
 
-export interface NextBeatHint {
-  beatId: string;
-  n: number;
-  title: string;
-  zoneId: string;
-  npcId?: string | null;
-}
+export type { NextBeatHint };
 
 const ZONE_LABELS: Record<string, string> = {
   lobby: 'Lobby',
@@ -103,8 +98,8 @@ function connectEvents(id: string): void {
   source.addEventListener('debate_delta', (e) => {
     const payload = JSON.parse((e as MessageEvent).data);
     gameBus.emit(GameEvents.DEBATE_LINE, payload);
-    gameBus.emit(GameEvents.SPEECH, payload);
   });
+  forward('debate_complete', GameEvents.DEBATE_COMPLETE);
   forward('convene', GameEvents.CONVENE);
   forward('board_vote', GameEvents.BOARD_VOTE);
   forward('war_room', GameEvents.WAR_ROOM);

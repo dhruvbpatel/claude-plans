@@ -8,8 +8,8 @@ import {
   createTilesetTexture,
 } from './textures';
 import {
-  BOARD_CAMERA,
   BOARD_SEATS,
+  BOARD_VIEW,
   FURNITURE,
   MAP_H,
   MAP_W,
@@ -23,6 +23,7 @@ import {
   type NpcDef,
   type ZoneDef,
 } from './officeMap';
+import { exploreZoom, fitRectZoom, rectCenterPx } from './cameraMath';
 import { scenarioIdFromUrl } from '../net/session';
 
 const PLAYER_SPEED = 130;
@@ -30,8 +31,8 @@ const NPC_SPEED = 50;
 const NPC_INTERACT_RADIUS = 42;
 const MEETING_STUCK_MS = 1000;
 const CAMERA_PAN_MS = 700;
-const EXPLORE_ZOOM = 2;
-const MEETING_ZOOM = 1.4;
+const TOUR_MS = 600;
+const NPC_TOUR_ZOOM = 3;
 
 type Dir = 'down' | 'left' | 'right' | 'up';
 const DIRS: Dir[] = ['down', 'left', 'right', 'up'];
@@ -69,12 +70,12 @@ export class OfficeScene extends Phaser.Scene {
   private unsubscribes: (() => void)[] = [];
   private meeting = false;
   private seated = false;
-  private leaveWhenIdle = false;
+  private pendingWalkOut = false;
   private walkingHome = false;
-  private lineQueue: { speakerId: string; text: string }[] = [];
+  private touring = false;
   private playerTarget: Phaser.Math.Vector2 | null = null;
-  private promptText: Phaser.GameObjects.Text | null = null;
   private npcDefs: NpcDef[] = [];
+  private onResize = (): void => this.applyViewport();
 
   constructor() {
     super('OfficeScene');
@@ -87,9 +88,9 @@ export class OfficeScene extends Phaser.Scene {
     this.uiLocked = false;
     this.meeting = false;
     this.seated = false;
-    this.leaveWhenIdle = false;
+    this.pendingWalkOut = false;
     this.walkingHome = false;
-    this.lineQueue = [];
+    this.touring = false;
     this.playerTarget = null;
     this.npcDefs = npcsForScenario(scenarioIdFromUrl());
 
@@ -175,9 +176,10 @@ export class OfficeScene extends Phaser.Scene {
     // --- Camera --------------------------------------------------------------
     const cam = this.cameras.main;
     cam.setBounds(0, 0, MAP_W * TILE, MAP_H * TILE);
-    cam.setZoom(EXPLORE_ZOOM);
+    cam.setZoom(exploreZoom(cam.width, cam.height));
     cam.startFollow(this.player, true, 0.12, 0.12);
     cam.fadeIn(300);
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize);
 
     // --- Input ---------------------------------------------------------------
     const kb = this.input.keyboard!;
@@ -185,58 +187,54 @@ export class OfficeScene extends Phaser.Scene {
     this.wasd = kb.addKeys('W,A,S,D') as OfficeScene['wasd'];
     this.keyE = kb.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.input.on('pointerdown', () => {
-      if (this.meeting && this.seated) this.advanceLine();
-      else this.tryInteract();
-    });
-    kb.on('keydown', () => {
-      if (this.meeting && this.seated) this.advanceLine();
+      this.tryInteract();
     });
 
     // --- Bus: input soft-lock + debate speech bubbles (SPEC §6) --------------
     this.unsubscribes.push(
       gameBus.on(GameEvents.PHASE, (payload) => {
         const { phase } = payload as { phase: string };
-        this.phaseLocked = phase !== 'EXPLORE' && phase !== 'GAME_END';
         if (phase === 'EXPLORE' || phase === 'GAME_END') {
-          // Don't wait for unread debate lines — leftover queue used to
-          // pin `meeting` true and freeze WASD/E after a card pick.
-          this.lineQueue = [];
-          if (this.meeting || this.leaveWhenIdle) this.startWalkOut();
-          else this.clearBubbles();
+          if (this.meeting) this.pendingWalkOut = true;
+          else this.phaseLocked = false;
+        } else {
+          this.phaseLocked = true;
         }
       }),
       gameBus.on(GameEvents.INPUT_LOCK, (payload) => {
         this.uiLocked = Boolean((payload as { locked: boolean }).locked);
       }),
-      gameBus.on(GameEvents.SPEECH, (payload) => {
-        if (this.meeting) return;
+      gameBus.on(GameEvents.LINE_SHOWN, (payload) => {
         const { speakerId, text } = payload as { speakerId: string; text: string };
-        this.showSpeech(speakerId, text);
+        this.showLineFor(speakerId, text);
       }),
-      gameBus.on(GameEvents.DEBATE_LINE, (payload) => {
-        if (!this.meeting) return;
-        const { speakerId, text } = payload as { speakerId: string; text: string };
-        this.lineQueue.push({ speakerId, text });
+      gameBus.on(GameEvents.DEBATE_DISMISSED, () => {
+        if (this.pendingWalkOut || this.meeting) this.startWalkOut();
+        else this.clearBubbles();
+        this.phaseLocked = false;
+        this.pendingWalkOut = false;
       }),
       gameBus.on(GameEvents.CONVENE, () => {
         this.startConvene();
+      }),
+      gameBus.on(GameEvents.TOUR_FOCUS, (payload) => {
+        this.focusTour(payload as { kind: 'room' | 'npc'; id: string });
+      }),
+      gameBus.on(GameEvents.TOUR_END, () => {
+        this.endTour();
       }),
     );
     const unsubAll = () => {
       this.unsubscribes.forEach((unsub) => unsub());
       this.unsubscribes = [];
+      this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize);
     };
     // DESTROY as well: game.destroy() (React StrictMode remount) skips SHUTDOWN.
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubAll);
     this.events.once(Phaser.Scenes.Events.DESTROY, unsubAll);
-
-    gameBus.emit(GameEvents.PHASE, { phase: 'EXPLORE' });
   }
 
   update(time: number) {
-    if (this.leaveWhenIdle && this.lineQueue.length === 0) {
-      this.startWalkOut();
-    }
     this.updatePlayer();
     this.updateNpcs(time);
     this.updatePrompt();
@@ -370,7 +368,7 @@ export class OfficeScene extends Phaser.Scene {
       npc.tag.setDepth(npc.sprite.y + 9);
 
       if (npc.bubble) {
-        if (time > npc.bubbleUntil) {
+        if (Number.isFinite(npc.bubbleUntil) && time > npc.bubbleUntil) {
           npc.bubble.destroy();
           npc.bubble = null;
         } else {
@@ -386,19 +384,14 @@ export class OfficeScene extends Phaser.Scene {
 
   // --- Debate speech bubbles ---------------------------------------------------
 
-  private showSpeech(speakerId: string, text: string) {
+  private showLineFor(speakerId: string, text: string) {
     if (!this.cameras?.main) return; // scene torn down
     const npc = this.npcs.find((n) => n.id === speakerId);
     if (!npc) return;
 
-    if (this.meeting) {
-      // Sequential debate: exactly one speaker's bubble on screen at a time.
-      for (const other of this.npcs) {
-        other.bubble?.destroy();
-        other.bubble = null;
-      }
-    } else {
-      npc.bubble?.destroy();
+    for (const other of this.npcs) {
+      other.bubble?.destroy();
+      other.bubble = null;
     }
     npc.bubble = this.add
       .text(npc.sprite.x, npc.sprite.y - 14, text, {
@@ -413,13 +406,11 @@ export class OfficeScene extends Phaser.Scene {
       })
       .setDepth(10_000 + npc.sprite.y);
     this.layoutBubble(npc.bubble, npc.sprite);
-    // Linger long enough to read, scaled by length; the next line replaces it.
-    npc.bubbleUntil = this.time.now + Math.min(9000, 2200 + text.length * 40);
+    npc.bubbleUntil = Number.POSITIVE_INFINITY;
 
     if (!this.meeting) {
       const cam = this.cameras.main;
       cam.stopFollow();
-      // Aim a bit below the speaker so an above-head bubble stays in frame.
       cam.pan(npc.sprite.x, npc.sprite.y + 16, 280, 'Sine.easeInOut');
     }
   }
@@ -462,9 +453,8 @@ export class OfficeScene extends Phaser.Scene {
 
   private startConvene() {
     this.meeting = true;
-    this.leaveWhenIdle = false;
+    this.pendingWalkOut = false;
     this.walkingHome = false;
-    this.lineQueue = [];
     this.phaseLocked = true;
     this.playerTarget = null;
 
@@ -492,13 +482,12 @@ export class OfficeScene extends Phaser.Scene {
     this.player.setFrame(DIR_FRAME[this.facing]);
 
     this.seated = true;
-    this.showAdvancePrompt();
 
     const cam = this.cameras.main;
     cam.stopFollow();
-    const focus = this.tileCenter(BOARD_CAMERA.x, BOARD_CAMERA.y);
+    const focus = rectCenterPx(BOARD_VIEW);
     cam.pan(focus.x, focus.y, CAMERA_PAN_MS, 'Sine.easeInOut');
-    cam.zoomTo(MEETING_ZOOM, CAMERA_PAN_MS, 'Sine.easeInOut');
+    cam.zoomTo(this.meetingZoom(), CAMERA_PAN_MS, 'Sine.easeInOut');
   }
 
   private maybeMarkSeated() {
@@ -508,19 +497,16 @@ export class OfficeScene extends Phaser.Scene {
     this.seated = true;
     this.facing = PLAYER_GALLERY.face;
     this.player.setFrame(DIR_FRAME[this.facing]);
-    this.showAdvancePrompt();
   }
 
   private startWalkOut() {
-    if (!this.meeting && !this.leaveWhenIdle) return;
-    this.leaveWhenIdle = false;
+    if (!this.meeting && !this.pendingWalkOut) return;
+    this.pendingWalkOut = false;
     this.meeting = false;
     this.seated = false;
     this.walkingHome = false;
     this.playerTarget = null;
-    this.lineQueue = [];
-    this.hideAdvancePrompt();
-    this.cameras.main.zoomTo(EXPLORE_ZOOM, CAMERA_PAN_MS, 'Sine.easeInOut');
+    this.cameras.main.zoomTo(this.currentExploreZoom(), CAMERA_PAN_MS, 'Sine.easeInOut');
     this.clearBubbles();
 
     for (const npc of this.npcs) {
@@ -538,33 +524,52 @@ export class OfficeScene extends Phaser.Scene {
     }
   }
 
-  private advanceLine() {
-    if (!this.meeting || !this.seated) return;
-    const next = this.lineQueue.shift();
-    if (!next) return;
-    this.hideAdvancePrompt();
-    this.showSpeech(next.speakerId, next.text);
+  private applyViewport() {
+    if (this.touring) return;
+    const cam = this.cameras.main;
+    if (this.meeting) {
+      const focus = rectCenterPx(BOARD_VIEW);
+      cam.setZoom(this.meetingZoom());
+      cam.centerOn(focus.x, focus.y);
+    } else {
+      cam.setZoom(this.currentExploreZoom());
+    }
   }
 
-  private showAdvancePrompt() {
-    this.hideAdvancePrompt();
-    const focus = this.tileCenter(BOARD_CAMERA.x, BOARD_CAMERA.y + 3);
-    this.promptText = this.add
-      .text(focus.x, focus.y, 'Press any key', {
-        fontFamily: 'monospace',
-        fontSize: '8px',
-        color: '#ffe08a',
-        backgroundColor: 'rgba(13, 18, 25, 0.75)',
-        padding: { x: 4, y: 2 },
-        resolution: 4,
-      })
-      .setOrigin(0.5, 0.5)
-      .setDepth(20_000);
+  private currentExploreZoom(): number {
+    const cam = this.cameras.main;
+    return exploreZoom(cam.width, cam.height);
   }
 
-  private hideAdvancePrompt() {
-    this.promptText?.destroy();
-    this.promptText = null;
+  private meetingZoom(): number {
+    const cam = this.cameras.main;
+    return fitRectZoom(BOARD_VIEW, { w: cam.width, h: cam.height });
+  }
+
+  private focusTour(step: { kind: 'room' | 'npc'; id: string }) {
+    this.touring = true;
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    if (step.kind === 'room') {
+      const room = ROOMS.find((r) => r.id === step.id);
+      if (!room) return;
+      const rect = { x0: room.x0, y0: room.y0, x1: room.x1, y1: room.y1 };
+      const focus = rectCenterPx(rect);
+      cam.pan(focus.x, focus.y, TOUR_MS, 'Sine.easeInOut');
+      cam.zoomTo(fitRectZoom(rect, { w: cam.width, h: cam.height }), TOUR_MS, 'Sine.easeInOut');
+      return;
+    }
+    const npc = this.npcs.find((n) => n.id === step.id);
+    if (!npc) return;
+    cam.pan(npc.sprite.x, npc.sprite.y, TOUR_MS, 'Sine.easeInOut');
+    cam.zoomTo(NPC_TOUR_ZOOM, TOUR_MS, 'Sine.easeInOut');
+  }
+
+  private endTour() {
+    this.touring = false;
+    const cam = this.cameras.main;
+    cam.startFollow(this.player, true, 0.12, 0.12);
+    cam.zoomTo(this.currentExploreZoom(), TOUR_MS, 'Sine.easeInOut');
   }
 
   private clearBubbles() {

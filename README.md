@@ -8,7 +8,7 @@ Plans and implementations for Claude/Cursor agent projects.
 
 Default campaign is **NovaTech Proxy War**: 8 quarters, a 16-card deck, 13 metrics, a 6-seat war room, a deterministic rival, weighted composite scoring. Meridian’s 9-beat authored campaign remains a regression baseline (`?scenario=meridian-activist-01`).
 
-**Run:** two terminals from `pixel-simulator-game/` — backend `cd backend && uvicorn app.main:app --reload --port 8000`, frontend `cd frontend && npm run dev` — then open [http://localhost:5173](http://localhost:5173).
+**Run:** two terminals from `pixel-simulator-game/` — `./run-backend.sh` and `./run-frontend.sh` (Windows: `run-backend.bat` / `run-frontend.bat`) — then open [http://localhost:5173](http://localhost:5173).
 
 | Doc | Purpose |
 |-----|---------|

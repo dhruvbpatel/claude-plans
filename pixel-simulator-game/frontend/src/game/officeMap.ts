@@ -296,5 +296,5 @@ export const BOARD_SEATS: Record<string, SeatDef> = {
 
 export const PLAYER_GALLERY: SeatDef = { x: 34, y: 8, face: 'up' };
 
-/** Table-center tile the camera holds on during a meeting. */
-export const BOARD_CAMERA = { x: 29, y: 6 };
+/** Tile rect the meeting camera fits during convene. */
+export const BOARD_VIEW = { x0: 20, y0: 1, x1: 40, y1: 11 };
