@@ -4,6 +4,10 @@ Phase machine per SPEC §4:
     EXPLORE -> BEAT_INTRO -> DEBATE -> AWAIT_DECISION -> APPLY
         -> EXPLORE | GAME_END
 
+Boardroom beats (zoneId == boardroom) skip debate until after decide:
+    EXPLORE -> BEAT_INTRO -> AWAIT_DECISION -> CONVENE -> DEBATE
+        -> BOARD_VOTE -> APPLY -> EXPLORE | GAME_END
+
 The curveball is beat 6 itself: its seeded variant's situation is revealed at
 BEAT_INTRO and its eventDeltas are applied by the engine inside `apply`.
 
@@ -26,7 +30,12 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.engine.protocols import DebateProvider, GameState, Option
+from app.engine.board_vote import (
+    create_board_vote_resolver,
+    public_board_vote,
+    safe_resolve,
+)
+from app.engine.protocols import BoardVoteResolver, DebateProvider, GameState, Option
 from app.engine.scoring import LOBBY_BONUS_NEWS, MeridianScoringEngine
 from app.providers.factory import create_debate_provider
 
@@ -46,6 +55,10 @@ def _load_scenario(scenario_id: str) -> dict[str, Any]:
     if not path.is_file():
         raise HTTPException(status_code=404, detail=f"unknown scenario {scenario_id!r}")
     return json.loads(path.read_text())
+
+
+def _is_boardroom(beat: dict[str, Any]) -> bool:
+    return beat.get("zoneId") == "boardroom"
 
 
 def _public_options(options: list[Option]) -> list[dict[str, Any]]:
@@ -68,9 +81,11 @@ class Session:
     scenario: dict[str, Any]
     state: GameState
     provider: DebateProvider
+    vote_resolver: BoardVoteResolver = field(default_factory=create_board_vote_resolver)
     phase: str = "EXPLORE"
     queue: asyncio.Queue = field(default_factory=asyncio.Queue)
     beat_task: asyncio.Task | None = None
+    motion_id: str | None = None
 
     def emit(self, event_type: str, payload: dict[str, Any]) -> None:
         self.queue.put_nowait((event_type, payload))
@@ -185,6 +200,8 @@ async def get_session(session_id: str) -> dict[str, Any]:
         snapshot["options"] = _public_options(
             session.engine.available_options(state)
         )
+    if session.motion_id:
+        snapshot["motionId"] = session.motion_id
     return snapshot
 
 
@@ -252,8 +269,13 @@ async def _run_beat(session: Session, beat: dict[str, Any]) -> None:
         )
         await asyncio.sleep(delay)
 
-        session.set_phase("DEBATE")
         options = session.engine.available_options(session.state)
+        if _is_boardroom(beat):
+            session.set_phase("AWAIT_DECISION")
+            session.emit("options", {"options": _public_options(options)})
+            return
+
+        session.set_phase("DEBATE")
         ctx = {
             "state": session.state,
             "beat": beat,
@@ -283,11 +305,66 @@ async def decide(session_id: str, req: DecideRequest) -> dict[str, Any]:
             detail=f"cannot decide in phase {session.phase!r}",
         )
 
+    beat = session.current_beat()
+    if beat is not None and _is_boardroom(beat):
+        return await _decide_boardroom(session, beat, req.optionId)
+
     try:
         new_state = session.engine.apply(session.state, req.optionId)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    return _finish_apply(session, new_state)
+
+
+async def _decide_boardroom(
+    session: Session, beat: dict[str, Any], motion_id: str
+) -> dict[str, Any]:
+    options = session.engine.available_options(session.state)
+    if not any(o.get("id") == motion_id for o in options):
+        raise HTTPException(status_code=400, detail=f"unknown option {motion_id!r}")
+
+    session.motion_id = motion_id
+    motion_label = next(o.get("label", motion_id) for o in options if o.get("id") == motion_id)
+
+    session.set_phase("CONVENE")
+    session.emit("convene", {"beatId": beat["id"], "motionId": motion_id})
+
+    session.set_phase("DEBATE")
+    ctx = {
+        "state": session.state,
+        "beat": beat,
+        "options": options,
+        "npcs": list(session.scenario.get("npcs", [])),
+        "motionId": motion_id,
+    }
+    async for delta in session.provider.stream(ctx):
+        session.emit(
+            "debate_delta",
+            {"speakerId": delta.get("speakerId", ""), "text": delta.get("text", "")},
+        )
+    session.emit("debate_complete", {})
+
+    vote = safe_resolve(session.vote_resolver, ctx)
+    session.set_phase("BOARD_VOTE")
+    session.emit("board_vote", public_board_vote(vote, options, motion_id, motion_label))
+
+    try:
+        new_state = session.engine.apply(session.state, vote["winningOptionId"])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    last = new_state["history"][-1]
+    last["motionId"] = motion_id
+    last["ballots"] = dict(vote.get("ballots") or {})
+    if vote.get("tieBrokenBy"):
+        last["tieBrokenBy"] = vote["tieBrokenBy"]
+
+    session.motion_id = None
+    return _finish_apply(session, new_state)
+
+
+def _finish_apply(session: Session, new_state: GameState) -> dict[str, Any]:
     session.set_phase("APPLY")
     session.state = new_state
     last = new_state["history"][-1]

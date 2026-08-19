@@ -108,6 +108,21 @@ def test_factory_is_case_insensitive(monkeypatch):
     assert isinstance(create_debate_provider(), GatewayDebate)
 
 
+def test_deterministic_prefaces_chair_motion(scenario, monkeypatch):
+    monkeypatch.setenv("DEBATE_DELAY_MS", "0")
+    beat = next(b for b in scenario["beats"] if b["id"] == "beat-4")
+    ctx = {
+        "state": {"beatIndex": 3, "kpis": dict(scenario["kpis"])},
+        "beat": beat,
+        "options": beat["options"],
+        "npcs": list(scenario["npcs"]),
+        "motionId": "4a",
+    }
+    lines = collect(DeterministicDebate(delay_ms=0), ctx)
+    assert lines[0]["speakerId"] == "chair"
+    assert "Demand two board seats" in lines[0]["text"]
+
+
 # -- gateway: happy path -------------------------------------------------------
 
 
