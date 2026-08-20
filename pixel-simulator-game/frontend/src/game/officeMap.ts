@@ -240,3 +240,26 @@ export const FURNITURE: FurnitureDef[] = [
   { texture: 'cooler', x: 43, y: 29, solid: true },
   { texture: 'plant', x: 57, y: 29, solid: false },
 ];
+
+export type Face = 'down' | 'left' | 'right' | 'up';
+
+export interface SeatDef {
+  x: number;
+  y: number;
+  face: Face;
+}
+
+/** Chair tiles around the existing board table. Tweak here, not in OfficeScene. */
+export const BOARD_SEATS: Record<string, SeatDef> = {
+  chair: { x: 35, y: 3, face: 'left' },
+  ceo: { x: 26, y: 1, face: 'down' },
+  cfo: { x: 29, y: 1, face: 'down' },
+  gc: { x: 32, y: 1, face: 'down' },
+  analyst: { x: 26, y: 5, face: 'up' },
+  partner: { x: 29, y: 5, face: 'up' },
+};
+
+export const PLAYER_GALLERY: SeatDef = { x: 32, y: 5, face: 'up' };
+
+/** Table-center tile the camera holds on during a meeting. */
+export const BOARD_CAMERA = { x: 30, y: 4 };
