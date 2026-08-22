@@ -3,6 +3,7 @@ import { PhaserGame } from './game/PhaserGame';
 import { startSession } from './net/session';
 import { InteractPrompt } from './ui/InteractPrompt';
 import { NewsTicker } from './ui/NewsTicker';
+import { BoardVoteOverlay } from './ui/BoardVoteOverlay';
 import { OptionCards } from './ui/OptionCards';
 import { Scorecard } from './ui/Scorecard';
 import { SidePanel } from './ui/SidePanel';
@@ -28,6 +29,7 @@ function App() {
           <InteractPrompt />
           <ToastLog />
           <OptionCards />
+          <BoardVoteOverlay />
           <Scorecard />
         </div>
       </main>
