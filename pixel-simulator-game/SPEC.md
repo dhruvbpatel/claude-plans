@@ -64,6 +64,8 @@ npm run dev                 # http://localhost:5173
 
 Proxy API in Phase 4 via Vite `server.proxy` or `VITE_API_BASE=http://127.0.0.1:8000`.
 
+Play: WASD + `E`/click. Open http://localhost:5173 with both processes running. Boardroom beats (4, 7, 9) present cards first; any key advances debate lines; the vote overlay is labels only. Full loop: `README.md`.
+
 ### Env (see `.env.example`)
 
 | Variable | Default | Purpose |
