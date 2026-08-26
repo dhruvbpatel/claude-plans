@@ -33,4 +33,7 @@ export const GameEvents = {
   NEXT_BEAT: 'game:nextBeat',
   DECIDE: 'ui:decide',
   INPUT_LOCK: 'ui:inputLock',
+  CONVENE: 'game:convene',
+  BOARD_VOTE: 'game:boardVote',
+  DEBATE_LINE: 'game:debateLine',
 } as const;

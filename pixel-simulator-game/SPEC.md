@@ -64,6 +64,8 @@ npm run dev                 # http://localhost:5173
 
 Proxy API in Phase 4 via Vite `server.proxy` or `VITE_API_BASE=http://127.0.0.1:8000`.
 
+Play: WASD + `E`/click. Open http://localhost:5173 with both processes running. Boardroom beats (4, 7, 9) present cards first; any key advances debate lines; the vote overlay is labels only. Full loop: `README.md`.
+
 ### Env (see `.env.example`)
 
 | Variable | Default | Purpose |
@@ -76,6 +78,7 @@ Proxy API in Phase 4 via Vite `server.proxy` or `VITE_API_BASE=http://127.0.0.1:
 | `GATEWAY_TIMEOUT_S` | `20` | Gateway request timeout (connect capped at 5s); on expiry → deterministic fallback |
 | `GAME_SEED` | — | Seeded curveball / replay (Phase 6) |
 | `DEBATE_DELAY_MS` | `600` | Pacing between streamed debate lines; `0` for headless tests |
+| `BOARD_VOTE_RESOLVER` | `authored` | Boardroom vote plugin (`authored` now; later agentic). Unknown → authored |
 
 ---
 
@@ -201,7 +204,9 @@ class DebateProvider(Protocol):
     async def stream(self, ctx: DebateContext) -> AsyncIterator[DebateDelta]: ...
 ```
 
-**Game phases:** `EXPLORE` → `BEAT_INTRO` → `DEBATE` → `AWAIT_DECISION` → `APPLY` → `CURVEBALL?` → `EXPLORE` | `GAME_END`.
+**Game phases (non-boardroom):** `EXPLORE` → `BEAT_INTRO` → `DEBATE` → `AWAIT_DECISION` → `APPLY` → `EXPLORE` | `GAME_END`.
+
+**Game phases (boardroom, `zoneId == "boardroom"`):** `EXPLORE` → `BEAT_INTRO` → `AWAIT_DECISION` (player motion) → `CONVENE` → `DEBATE` → `BOARD_VOTE` → `APPLY` (board winner, not the motion) → `EXPLORE` | `GAME_END`.
 
 **Implementations:**
 
@@ -212,6 +217,7 @@ class DebateProvider(Protocol):
 | `app/providers/gateway.py` | `GatewayDebate` (done: OpenAI-compatible streaming + deterministic fallback) | 5 |
 | `app/providers/swarm.py` | `SwarmDebate` (stub done: documented contract + plausible fake stream; teammates replace `stream`) | 5 |
 | `app/providers/factory.py` | `create_debate_provider(name=None)` — reads `DEBATE_PROVIDER` | 5 |
+| `app/engine/board_vote.py` | `AuthoredBoardVote` + `create_board_vote_resolver` / `safe_resolve` — majority + Chair tie-break |  |
 
 **Provider selection:** `create_debate_provider()` resolves `DEBATE_PROVIDER=deterministic|gateway|swarm` per session at `POST /sessions` time (new sessions pick up env changes without a restart). Unknown values log a warning and fall back to `deterministic` — the game is always playable with zero config.
 
@@ -275,6 +281,8 @@ A beat activates when `targetId` matches the current beat's `zone:{zoneId}` or `
 
 Only valid in `AWAIT_DECISION` (else **409**); unknown/flag-gated option → **400**.
 
+On a **boardroom** beat (`zoneId == "boardroom"`), `optionId` is the player's **motion**. The server emits `convene`, streams debate (with `motionId` in the provider context), emits `board_vote`, then `apply`s the resolver winner. History records `motionId` / `ballots` / optional `tieBrokenBy` on the applied entry. `ScoringEngine.apply` is unchanged.
+
 ```json
 // request
 { "optionId": "2a" }
@@ -298,6 +306,8 @@ Named events with JSON `data:` payloads. Events emitted before the client connec
 | `beat` | `{ beatId, n, title, situation, zoneId, npcId }` — at BEAT_INTRO; curveball variant's title/situation merged in |
 | `debate_delta` | `{ speakerId, text }` |
 | `debate_complete` | `{}` |
+| `convene` | `{ beatId, motionId }` — boardroom only; agents walk to seats |
+| `board_vote` | `{ motionId, motionLabel, votes: [{ speakerId, name, optionId, label }], winningOptionId, winningLabel, tieBrokenBy? }` — **no deltas** |
 | `options` | `{ options: [{ id, label, pros, cons }] }` — **no deltas** |
 | `kpi_patch` | `{ kpis }` |
 | `news` | `{ text }` — consequences, curveball headline, lobby bonus, hints; feeds the toasts **and** the persistent bottom news ticker |
@@ -328,7 +338,10 @@ Client bridge (Phase 3–4): a tiny EventTarget / mitt bus shared by Phaser scen
 | `game:interact` | Phaser → React/API | `{ targetId, beatId? }` — `beatId` omitted client-side until Phase 4 maps beats |
 | `game:prompt` | Phaser → React | `{ targetId, label }` \| `null` — show/hide interact prompt (Phase 3) |
 | `game:phase` | React/store → Phaser | `{ phase }` — soft-lock input when not `EXPLORE` |
-| `game:speech` | SSE → Phaser | `{ speakerId, text }` — speech bubble |
+| `game:speech` | SSE → Phaser | `{ speakerId, text }` — speech bubble (ignored during a boardroom meeting) |
+| `game:debateLine` | SSE → Phaser | `{ speakerId, text }` — queued for key-advance during a meeting |
+| `game:convene` | SSE → Phaser | `{ beatId, motionId }` — walk to seats, hold camera on the table |
+| `game:boardVote` | SSE → React | vote recap overlay (labels only) |
 | `game:kpi` | SSE → React | `{ kpis }` |
 | `game:options` | SSE → React | `{ options }` |
 | `game:news` | SSE → React | `{ text }` — consumed by both `ToastLog` and the persistent `NewsTicker` bottom bar (ticker seeds itself with ambient headlines, rotates every 6s, jumps to fresh news) |
@@ -339,7 +352,7 @@ Client bridge (Phase 3–4): a tiny EventTarget / mitt bus shared by Phaser scen
 | `ui:decide` | React → API | `{ optionId }` |
 | `ui:inputLock` | React → Phaser | `{ locked: boolean }` |
 
-Free walk only in `EXPLORE`; soft-lock during `DEBATE` / `AWAIT_DECISION`.
+Free walk only in `EXPLORE`; soft-lock during `DEBATE` / `AWAIT_DECISION` / `CONVENE` / `BOARD_VOTE`, and while a boardroom meeting is still showing queued lines.
 
 ---
 
