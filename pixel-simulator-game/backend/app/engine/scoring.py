@@ -24,18 +24,11 @@ import copy
 import random
 from typing import Any
 
-from app.engine.protocols import GameState, Kpis, Option, Scenario, Summary
+from app.engine.metrics import V1_BOUNDS, bounds_from_scenario, openings_from_scenario, schema_version
+from app.engine.protocols import GameState, Option, Scenario, Summary
 
 KPI_KEYS = ("stockPrice", "boardResistance", "ownershipPct", "warChest", "mediaHeat")
-
-# Inclusive (min, max) bounds; None = unbounded on that side.
-KPI_BOUNDS: dict[str, tuple[float | None, float | None]] = {
-    "stockPrice": (0.0, None),
-    "boardResistance": (0.0, 100.0),
-    "ownershipPct": (0.0, 100.0),
-    "warChest": (None, None),  # may go negative -> lose condition fires
-    "mediaHeat": (0.0, 100.0),
-}
+KPI_BOUNDS = V1_BOUNDS
 
 OUTCOME_PLAYING = "playing"
 OUTCOME_WON = "won"
@@ -50,8 +43,13 @@ LOBBY_BONUS_NEWS = (
 )
 
 
-def _clamp(kpi: str, value: float) -> float:
-    lo, hi = KPI_BOUNDS[kpi]
+def _clamp(
+    kpi: str,
+    value: float,
+    bounds: dict[str, tuple[float | None, float | None]] | None = None,
+) -> float:
+    table = bounds if bounds is not None else KPI_BOUNDS
+    lo, hi = table.get(kpi, (None, None))
     if lo is not None:
         value = max(lo, value)
     if hi is not None:
@@ -71,16 +69,19 @@ class MeridianScoringEngine:
         scenario_id = scenario["id"]
         self._scenarios[scenario_id] = scenario
 
+        kpis = openings_from_scenario(scenario)
         state: GameState = {
             "scenarioId": scenario_id,
             "phase": "EXPLORE",
             "beatIndex": 0,
-            "kpis": dict(scenario["kpis"]),  # type: ignore[typeddict-item]
+            "kpis": dict(kpis),
             "flags": [],
             "history": [],
             "seed": seed,
             "outcome": OUTCOME_PLAYING,
         }
+        if schema_version(scenario) == 2:
+            state["openingKpis"] = dict(kpis)
 
         variant_id = self._pick_curveball_variant(scenario, seed)
         if variant_id is not None:
@@ -119,6 +120,7 @@ class MeridianScoringEngine:
 
         new_state: GameState = copy.deepcopy(state)
         scenario = self._scenario_for(state)
+        bounds = bounds_from_scenario(scenario)
         kpis: dict[str, float] = dict(new_state["kpis"])  # type: ignore[arg-type]
 
         event_deltas: dict[str, float] = {}
@@ -126,10 +128,10 @@ class MeridianScoringEngine:
             variant = self._selected_variant(state, beat)
             event_deltas = dict(variant.get("eventDeltas", {}))
             for kpi, delta in event_deltas.items():
-                kpis[kpi] = _clamp(kpi, kpis[kpi] + delta)
+                kpis[kpi] = _clamp(kpi, kpis[kpi] + delta, bounds)
 
         for kpi, delta in option.get("deltas", {}).items():
-            kpis[kpi] = _clamp(kpi, kpis[kpi] + delta)
+            kpis[kpi] = _clamp(kpi, kpis.get(kpi, 0) + delta, bounds)
 
         new_state["kpis"] = kpis  # type: ignore[typeddict-item]
 
@@ -172,9 +174,10 @@ class MeridianScoringEngine:
             return None
 
         new_state: GameState = copy.deepcopy(state)
+        bounds = bounds_from_scenario(self._scenario_for(state))
         kpis: dict[str, float] = dict(new_state["kpis"])  # type: ignore[arg-type]
         for kpi, delta in LOBBY_BONUS_DELTAS.items():
-            kpis[kpi] = _clamp(kpi, kpis[kpi] + delta)
+            kpis[kpi] = _clamp(kpi, kpis[kpi] + delta, bounds)
         new_state["kpis"] = kpis  # type: ignore[typeddict-item]
         new_state["lobbyClaimedBeats"] = [*claimed, state["beatIndex"]]
         return new_state
@@ -199,7 +202,7 @@ class MeridianScoringEngine:
         return self._scenarios[scenario_id]
 
     def _current_beat(self, state: GameState) -> dict[str, Any] | None:
-        beats = self._scenario_for(state)["beats"]
+        beats = self._scenario_for(state).get("beats") or []
         index = state["beatIndex"]
         if index >= len(beats):
             return None
@@ -212,7 +215,7 @@ class MeridianScoringEngine:
 
     @staticmethod
     def _pick_curveball_variant(scenario: Scenario, seed: int) -> str | None:
-        for beat in scenario["beats"]:
+        for beat in scenario.get("beats") or []:
             if beat.get("curveball"):
                 variants = beat["variants"]
                 return variants[random.Random(seed).randrange(len(variants))]["id"]
