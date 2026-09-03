@@ -30,13 +30,20 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.engine.factory import create_war_room_provider
 from app.engine.metrics import schema_version
 from app.engine.board_vote import (
     create_board_vote_resolver,
     public_board_vote,
     safe_resolve,
 )
-from app.engine.protocols import BoardVoteResolver, DebateProvider, GameState, Option
+from app.engine.protocols import (
+    BoardVoteResolver,
+    DebateProvider,
+    GameState,
+    Option,
+    WarRoomProvider,
+)
 from app.engine.scoring import LOBBY_BONUS_NEWS, MeridianScoringEngine
 from app.providers.factory import create_debate_provider
 
@@ -75,6 +82,47 @@ def _public_options(options: list[Option]) -> list[dict[str, Any]]:
     ]
 
 
+def _seat_name(scenario: dict[str, Any], seat_id: str) -> str:
+    for seat in (scenario.get("warRoom") or {}).get("seats") or []:
+        if seat.get("id") == seat_id:
+            return str(seat.get("name") or seat_id)
+    return seat_id
+
+
+def _public_war_room(
+    result: dict[str, Any], options: list[Option], quarter: int, scenario: dict[str, Any]
+) -> dict[str, Any]:
+    labels = {str(o["id"]): str(o.get("label", o["id"])) for o in options}
+    chair = result.get("chair") or {}
+    rec = str(chair.get("recommendedCardId") or "")
+    return {
+        "quarter": quarter,
+        "recommendedCardId": rec,
+        "recommendedLabel": labels.get(rec, rec),
+        "tally": dict(chair.get("tally") or {}),
+        "confidence": chair.get("confidence") or "low",
+        "dissents": [
+            {
+                "seatId": d.get("seatId"),
+                "name": _seat_name(scenario, str(d.get("seatId") or "")),
+                "preferredCardId": d.get("preferredCardId"),
+                "preferredLabel": labels.get(str(d.get("preferredCardId") or ""), ""),
+                "concern": d.get("concern") or "",
+            }
+            for d in chair.get("dissents") or []
+        ],
+        "seats": [
+            {
+                "seatId": s.get("seatId"),
+                "name": _seat_name(scenario, str(s.get("seatId") or "")),
+                "preferredCardId": s.get("preferredCardId"),
+                "preferredLabel": labels.get(str(s.get("preferredCardId") or ""), ""),
+            }
+            for s in result.get("seats") or []
+        ],
+    }
+
+
 @dataclass
 class Session:
     id: str
@@ -83,10 +131,12 @@ class Session:
     state: GameState
     provider: DebateProvider
     vote_resolver: BoardVoteResolver = field(default_factory=create_board_vote_resolver)
+    war_room_provider: WarRoomProvider | None = None
     phase: str = "EXPLORE"
     queue: asyncio.Queue = field(default_factory=asyncio.Queue)
     beat_task: asyncio.Task | None = None
     motion_id: str | None = None
+    last_war_room: dict[str, Any] | None = None
 
     def emit(self, event_type: str, payload: dict[str, Any]) -> None:
         self.queue.put_nowait((event_type, payload))
@@ -178,6 +228,7 @@ async def create_session(req: CreateSessionRequest) -> dict[str, Any]:
         scenario=scenario,
         state=state,
         provider=create_debate_provider(),
+        war_room_provider=create_war_room_provider(scenario=scenario),
     )
     SESSIONS[session.id] = session
 
@@ -216,6 +267,8 @@ async def get_session(session_id: str) -> dict[str, Any]:
         snapshot["options"] = _public_options(
             session.engine.available_options(state)
         )
+        if session.last_war_room:
+            snapshot["warRoom"] = session.last_war_room
     if session.motion_id:
         snapshot["motionId"] = session.motion_id
     return snapshot
@@ -266,6 +319,63 @@ async def interact(session_id: str, req: InteractRequest) -> dict[str, Any]:
     return {"phase": "BEAT_INTRO", "beatId": beat["id"], "accepted": True}
 
 
+async def _run_war_room(
+    session: Session, beat: dict[str, Any], options: list[Option], delay: float
+) -> None:
+    provider = session.war_room_provider or create_war_room_provider(
+        scenario=session.scenario
+    )
+    session.set_phase("CONVENE")
+    session.emit(
+        "convene",
+        {"beatId": beat["id"], "quarter": session.state["beatIndex"]},
+    )
+    result = provider.convene(
+        {
+            "state": session.state,
+            "quarter": int(session.state["beatIndex"]),
+            "news": str(session.state.get("lastNews") or ""),
+            "hand": options,
+            "interrupt": bool(session.state.get("interrupt")),
+            "npcs": list(session.scenario.get("npcs") or []),
+            "seats": list((session.scenario.get("warRoom") or {}).get("seats") or []),
+        }
+    )
+    public = _public_war_room(
+        result, options, int(session.state["beatIndex"]), session.scenario
+    )
+    session.last_war_room = public
+
+    session.set_phase("DEBATE")
+    for seat in result.get("seats") or []:
+        if delay:
+            await asyncio.sleep(delay)
+        session.emit(
+            "debate_delta",
+            {
+                "speakerId": seat.get("seatId", ""),
+                "text": seat.get("rationale") or "",
+            },
+        )
+    rec_label = public.get("recommendedLabel") or public.get("recommendedCardId")
+    if delay:
+        await asyncio.sleep(delay)
+    session.emit(
+        "debate_delta",
+        {
+            "speakerId": "chair",
+            "text": (
+                f"The chair recommends '{rec_label}' "
+                f"({public.get('confidence', 'low')} confidence)."
+            ),
+        },
+    )
+    session.emit("debate_complete", {})
+    session.emit("war_room", public)
+    session.set_phase("AWAIT_DECISION")
+    session.emit("options", {"options": _public_options(options)})
+
+
 async def _run_beat(session: Session, beat: dict[str, Any]) -> None:
     """BEAT_INTRO -> DEBATE (streamed) -> AWAIT_DECISION."""
     delay = _pacing_delay()
@@ -297,6 +407,9 @@ async def _run_beat(session: Session, beat: dict[str, Any]) -> None:
         await asyncio.sleep(delay)
 
         options = session.engine.available_options(session.state)
+        if schema_version(session.scenario) == 2:
+            await _run_war_room(session, beat, options, delay)
+            return
         if _is_boardroom(beat):
             session.set_phase("AWAIT_DECISION")
             session.emit("options", {"options": _public_options(options)})
@@ -340,6 +453,12 @@ async def decide(session_id: str, req: DecideRequest) -> dict[str, Any]:
         new_state = session.engine.apply(session.state, req.optionId)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if session.last_war_room:
+        last = new_state["history"][-1]
+        last["recommendedCardId"] = session.last_war_room.get("recommendedCardId")
+        last["followedChair"] = req.optionId == last["recommendedCardId"]
+        session.last_war_room = None
 
     return _finish_apply(session, new_state)
 

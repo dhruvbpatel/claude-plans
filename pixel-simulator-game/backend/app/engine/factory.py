@@ -17,15 +17,11 @@ from app.engine.protocols import (
     WarRoomProvider,
 )
 from app.engine.rival import DeterministicRival
-from app.engine.war_room import DeterministicWarRoom
+from app.engine.war_room import DeterministicWarRoom, SwarmWarRoom
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT = "deterministic"
-
-
-class SwarmWarRoom(DeterministicWarRoom):
-    """Documented swarm slot. Delegates to deterministic this effort."""
 
 
 def _pick(env_key: str, name: str | None, table: dict[str, type], default_cls: type):

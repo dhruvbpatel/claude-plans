@@ -272,6 +272,17 @@ def test_novatech_quarter_loop(client):
     snap = _wait_for_phase(client, sid, "AWAIT_DECISION")
     assert 3 <= len(snap["options"]) <= 4
     assert "deltas" not in snap["options"][0]
+    assert snap.get("warRoom", {}).get("recommendedCardId")
+    assert "deltas" not in snap["warRoom"]
+
+    from app.api.sessions import SESSIONS
+
+    events = _drain(SESSIONS[sid])
+    types = [t for t, _ in events]
+    assert "convene" in types
+    assert "war_room" in types
+    assert types.index("convene") < types.index("debate_delta") < types.index("war_room")
+    assert types.index("war_room") < types.index("options")
 
     res = client.post(
         f"/sessions/{sid}/decide", json={"optionId": snap["options"][0]["id"]}
