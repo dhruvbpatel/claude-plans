@@ -344,8 +344,8 @@
       }
     ],
     "secondaryTriggers": [
-      { "kpi": "confidence", "lte": 45, "attackId": "injunction" },
-      { "kpi": "innovation", "lte": 55, "attackId": "injunction" }
+      { "kpi": "confidence", "lt": 45, "attackId": "injunction" },
+      { "kpi": "innovation", "lt": 55, "attackId": "injunction" }
     ]
   },
   "scoring": {
