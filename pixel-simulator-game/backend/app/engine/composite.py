@@ -33,9 +33,14 @@ class WeightedComposite:
         )
         kpis = dict(state.get("kpis") or {})
         opening = dict(state.get("openingKpis") or kpis)
-        if "companyValue" in weights and "companyValue" not in kpis:
-            kpis["companyValue"] = float(state.get("companyValue") or 0)
-            opening.setdefault("companyValue", kpis["companyValue"] or 1.0)
+        if "companyValue" in weights:
+            kpis["companyValue"] = float(state.get("companyValue") or kpis.get("companyValue") or 0)
+            opening["companyValue"] = float(
+                state.get("openingCompanyValue")
+                or opening.get("companyValue")
+                or kpis["companyValue"]
+                or 1.0
+            )
 
         breakdown: list[ScoreBreakdown] = []
         composite = 0.0
@@ -55,11 +60,14 @@ class WeightedComposite:
                     "contribution": contribution,
                 }
             )
+        ratios = {row["metricId"]: row["ratio"] for row in breakdown}
         win_at = float((self._scenario.get("scoring") or {}).get("winAt") or 110)
         if failed:
             band, outcome = "failed", "lost"
         elif composite >= win_at:
-            band, outcome = "constructive", "won"
+            host_ok = ratios.get("morale", 1) >= 0.9 and ratios.get("innovation", 1) >= 0.9
+            band = "constructive" if host_ok else "pyrrhic"
+            outcome = "won"
         elif composite >= 95:
             band, outcome = "settled", "lost"
         else:
