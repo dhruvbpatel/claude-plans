@@ -286,6 +286,9 @@ async def interact(session_id: str, req: InteractRequest) -> dict[str, Any]:
     triggers = {f"zone:{beat['zoneId']}"}
     if beat.get("npcId"):
         triggers.add(f"npc:{beat['npcId']}")
+    if schema_version(session.scenario) == 2:
+        triggers.add("zone:boardroom")
+        triggers.add("zone:war_room")
 
     # Once-per-beat lobby bonus (Phase 6): deterministic, engine-side.
     if (

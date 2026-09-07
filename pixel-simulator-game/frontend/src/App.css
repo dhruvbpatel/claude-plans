@@ -175,6 +175,16 @@ body {
   gap: 0.5rem;
 }
 
+.option-cards.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.option-rec {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  color: #8ef0cf;
+}
+
 .option-card {
   display: flex;
   flex-direction: column;
@@ -300,10 +310,11 @@ body {
 .scorecard-grade {
   margin: 0;
   font-family: monospace;
-  font-size: 3.2rem;
+  font-size: 1.6rem;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.2;
   color: #ffe08a;
+  text-align: center;
 }
 
 .scorecard-kpis {
@@ -481,6 +492,42 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
+}
+
+.quarter-line {
+  margin: 0.35rem 0 0;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #ffe08a;
+}
+
+.pressure-track {
+  position: relative;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #1b2533;
+  border: 1px solid #2a3548;
+  overflow: hidden;
+}
+
+.pressure-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3fd0a4, #ffe08a 55%, #d05a6a);
+}
+
+.pressure-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e8eef7;
+}
+
+.pressure-value {
+  margin: 0.3rem 0 0;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #8aa0b8;
 }
 
 .kpi-card {
