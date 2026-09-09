@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
+import { GameEvents, gameBus } from './eventBus';
 import { OfficeScene } from './OfficeScene';
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -27,7 +28,20 @@ export function PhaserGame() {
   useEffect(() => {
     if (!hostRef.current) return;
     const game = new Phaser.Game({ ...config, parent: hostRef.current });
+    const focusCanvas = () => {
+      const canvas = game.canvas as HTMLCanvasElement | undefined;
+      if (!canvas) return;
+      canvas.tabIndex = 0;
+      canvas.focus({ preventScroll: true });
+    };
+    // Option cards are HTML buttons; clicking one steals keys from Phaser.
+    const unsub = gameBus.on(GameEvents.PHASE, (payload) => {
+      const { phase } = payload as { phase: string };
+      if (phase === 'EXPLORE' || phase === 'GAME_END') focusCanvas();
+    });
+    game.events.once(Phaser.Core.Events.READY, focusCanvas);
     return () => {
+      unsub();
       game.destroy(true);
     };
   }, []);

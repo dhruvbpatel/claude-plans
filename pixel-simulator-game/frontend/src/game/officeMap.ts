@@ -111,7 +111,7 @@ export const ZONES: ZoneDef[] = [
   { id: 'ceo_office', label: 'CEO Office', x: 46, y: 6, w: 2, h: 2 },
   { id: 'cfo_office', label: 'CFO Office', x: 45, y: 17, w: 2, h: 2 },
   { id: 'gc_office', label: 'GC Office', x: 45, y: 25, w: 2, h: 2 },
-  { id: 'boardroom', label: 'Boardroom', x: 28, y: 7, w: 2, h: 2 },
+  { id: 'boardroom', label: 'Boardroom', x: 28, y: 9, w: 2, h: 2 },
   { id: 'press_bay', label: 'Press Bay', x: 17, y: 31, w: 2, h: 2 },
 ];
 
@@ -131,58 +131,68 @@ export const PLAYER_PALETTE: CharPalette = {
 
 export const PLAYER_SPAWN = { x: 32, y: 36 };
 
-export const NPCS: NpcDef[] = [
-  {
-    id: 'ceo', name: 'CEO', spawn: { x: 50, y: 6 },
-    wander: { x0: 44, y0: 3, x1: 57, y1: 9 },
-    palette: { skin: '#f0c8a0', hair: '#9aa0a8', shirt: '#3a3f4a', pants: '#2b2f38' },
-  },
-  {
-    id: 'cfo', name: 'CFO', spawn: { x: 50, y: 18 },
-    wander: { x0: 43, y0: 16, x1: 57, y1: 19 },
-    palette: { skin: '#c98a5e', hair: '#4a3324', shirt: '#274768', pants: '#1e2c40' },
-  },
-  {
-    id: 'gc', name: 'General Counsel', spawn: { x: 51, y: 26 },
-    wander: { x0: 43, y0: 23, x1: 57, y1: 26 },
-    palette: { skin: '#e8b98a', hair: '#1f1b18', shirt: '#6b2f3a', pants: '#33222a' },
-  },
-  {
-    id: 'chair', name: 'Chair', spawn: { x: 30, y: 8 },
-    wander: { x0: 19, y0: 7, x1: 40, y1: 10 },
-    palette: { skin: '#f0c8a0', hair: '#e8e4dc', shirt: '#4a5d3a', pants: '#3a3328' },
-  },
-  {
-    id: 'analyst', name: 'Research / CTO', spawn: { x: 13, y: 20 },
-    wander: { x0: 2, y0: 16, x1: 21, y1: 25 },
-    palette: { skin: '#b97a50', hair: '#2a241f', shirt: '#2f8f7a', pants: '#3d4450' },
-  },
-  {
-    id: 'partner', name: 'Operating Partner', spawn: { x: 7, y: 8 },
-    wander: { x0: 2, y0: 3, x1: 14, y1: 9 },
-    palette: { skin: '#e8b98a', hair: '#5a3a28', shirt: '#5d3a78', pants: '#2e2440' },
-  },
-  {
-    id: 'operator', name: 'Operating Partner', spawn: { x: 9, y: 6 },
-    wander: { x0: 2, y0: 3, x1: 14, y1: 9 },
-    palette: { skin: '#e8b98a', hair: '#5a3a28', shirt: '#5d3a78', pants: '#2e2440' },
-  },
-  {
-    id: 'cto', name: 'Research / CTO', spawn: { x: 15, y: 18 },
-    wander: { x0: 2, y0: 16, x1: 21, y1: 25 },
-    palette: { skin: '#b97a50', hair: '#2a241f', shirt: '#2f8f7a', pants: '#3d4450' },
-  },
-  {
-    id: 'hr', name: 'Talent / HR', spawn: { x: 52, y: 8 },
-    wander: { x0: 44, y0: 3, x1: 57, y1: 9 },
-    palette: { skin: '#f0c8a0', hair: '#9aa0a8', shirt: '#3a3f4a', pants: '#2b2f38' },
-  },
-  {
-    id: 'comms', name: 'Communications', spawn: { x: 10, y: 32 },
-    wander: { x0: 2, y0: 30, x1: 20, y1: 37 },
-    palette: { skin: '#e8b98a', hair: '#3a2a20', shirt: '#8a5a28', pants: '#2a2420' },
-  },
-];
+const CEO: NpcDef = {
+  id: 'ceo', name: 'CEO', spawn: { x: 50, y: 6 },
+  wander: { x0: 44, y0: 3, x1: 57, y1: 9 },
+  palette: { skin: '#f0c8a0', hair: '#9aa0a8', shirt: '#3a3f4a', pants: '#2b2f38' },
+};
+const CFO: NpcDef = {
+  id: 'cfo', name: 'CFO', spawn: { x: 50, y: 18 },
+  wander: { x0: 43, y0: 16, x1: 57, y1: 19 },
+  palette: { skin: '#c98a5e', hair: '#4a3324', shirt: '#274768', pants: '#1e2c40' },
+};
+const GC: NpcDef = {
+  id: 'gc', name: 'General Counsel', spawn: { x: 51, y: 26 },
+  wander: { x0: 43, y0: 23, x1: 57, y1: 26 },
+  palette: { skin: '#e8b98a', hair: '#1f1b18', shirt: '#6b2f3a', pants: '#33222a' },
+};
+const CHAIR: NpcDef = {
+  id: 'chair', name: 'Chair', spawn: { x: 30, y: 9 },
+  wander: { x0: 19, y0: 7, x1: 40, y1: 10 },
+  palette: { skin: '#f0c8a0', hair: '#e8e4dc', shirt: '#4a5d3a', pants: '#3a3328' },
+};
+const ANALYST: NpcDef = {
+  id: 'analyst', name: 'Analyst', spawn: { x: 13, y: 20 },
+  wander: { x0: 2, y0: 16, x1: 21, y1: 25 },
+  palette: { skin: '#b97a50', hair: '#2a241f', shirt: '#2f8f7a', pants: '#3d4450' },
+};
+const PARTNER: NpcDef = {
+  id: 'partner', name: 'Activist Partner', spawn: { x: 7, y: 8 },
+  wander: { x0: 2, y0: 3, x1: 14, y1: 9 },
+  palette: { skin: '#e8b98a', hair: '#5a3a28', shirt: '#5d3a78', pants: '#2e2440' },
+};
+const OPERATOR: NpcDef = {
+  id: 'operator', name: 'Operating Partner', spawn: { x: 9, y: 6 },
+  wander: { x0: 2, y0: 3, x1: 14, y1: 9 },
+  palette: { skin: '#e8b98a', hair: '#5a3a28', shirt: '#5d3a78', pants: '#2e2440' },
+};
+const CTO: NpcDef = {
+  id: 'cto', name: 'Research / CTO', spawn: { x: 15, y: 18 },
+  wander: { x0: 2, y0: 16, x1: 21, y1: 25 },
+  palette: { skin: '#b97a50', hair: '#2a241f', shirt: '#2f8f7a', pants: '#3d4450' },
+};
+const HR: NpcDef = {
+  id: 'hr', name: 'Talent / HR', spawn: { x: 52, y: 8 },
+  wander: { x0: 44, y0: 3, x1: 57, y1: 9 },
+  palette: { skin: '#f0c8a0', hair: '#9aa0a8', shirt: '#3a3f4a', pants: '#2b2f38' },
+};
+const COMMS: NpcDef = {
+  id: 'comms', name: 'Communications', spawn: { x: 10, y: 32 },
+  wander: { x0: 2, y0: 30, x1: 20, y1: 37 },
+  palette: { skin: '#e8b98a', hair: '#3a2a20', shirt: '#8a5a28', pants: '#2a2420' },
+};
+
+/** NovaTech war-room debate seats (scenario npcs + chair). */
+export const NOVATECH_NPCS: NpcDef[] = [CFO, GC, CHAIR, OPERATOR, CTO, HR, COMMS];
+/** Meridian boardroom + office cast. */
+export const MERIDIAN_NPCS: NpcDef[] = [CEO, CFO, GC, CHAIR, ANALYST, PARTNER];
+
+export function npcsForScenario(scenarioId: string): NpcDef[] {
+  return scenarioId.includes('meridian') ? MERIDIAN_NPCS : NOVATECH_NPCS;
+}
+
+/** Default = NovaTech debate cast. OfficeScene may swap via npcsForScenario. */
+export const NPCS: NpcDef[] = NOVATECH_NPCS;
 
 // --- Furniture (tile coords of top-left corner) ------------------------------
 
@@ -194,16 +204,16 @@ export interface FurnitureDef {
 }
 
 export const FURNITURE: FurnitureDef[] = [
-  // Boardroom
-  { texture: 'board_table', x: 25, y: 3, solid: true },
-  { texture: 'chair', x: 26, y: 1, solid: false },
-  { texture: 'chair', x: 29, y: 1, solid: false },
-  { texture: 'chair', x: 32, y: 1, solid: false },
-  { texture: 'chair', x: 26, y: 5, solid: false },
-  { texture: 'chair', x: 29, y: 5, solid: false },
-  { texture: 'chair', x: 32, y: 5, solid: false },
-  { texture: 'chair', x: 35, y: 3, solid: false },
-  { texture: 'chair', x: 35, y: 5, solid: false },
+  // Boardroom — table sits mid-room so north-row bubbles have headroom
+  { texture: 'board_table', x: 25, y: 6, solid: true },
+  { texture: 'chair', x: 26, y: 4, solid: false },
+  { texture: 'chair', x: 29, y: 4, solid: false },
+  { texture: 'chair', x: 32, y: 4, solid: false },
+  { texture: 'chair', x: 26, y: 8, solid: false },
+  { texture: 'chair', x: 29, y: 8, solid: false },
+  { texture: 'chair', x: 32, y: 8, solid: false },
+  { texture: 'chair', x: 35, y: 6, solid: false },
+  { texture: 'chair', x: 35, y: 8, solid: false },
   { texture: 'plant', x: 18, y: 1, solid: false },
   { texture: 'plant', x: 41, y: 9, solid: false },
   // CEO office
@@ -270,21 +280,21 @@ export interface SeatDef {
   face: Face;
 }
 
-/** Chair tiles around the existing board table. Tweak here, not in OfficeScene. */
+/** Unique stand/sit tiles around the board table. */
 export const BOARD_SEATS: Record<string, SeatDef> = {
-  chair: { x: 35, y: 3, face: 'left' },
-  ceo: { x: 26, y: 1, face: 'down' },
-  cfo: { x: 29, y: 1, face: 'down' },
-  gc: { x: 32, y: 1, face: 'down' },
-  analyst: { x: 26, y: 5, face: 'up' },
-  partner: { x: 29, y: 5, face: 'up' },
-  hr: { x: 26, y: 1, face: 'down' },
-  operator: { x: 29, y: 5, face: 'up' },
-  cto: { x: 26, y: 5, face: 'up' },
-  comms: { x: 35, y: 5, face: 'up' },
+  chair: { x: 35, y: 6, face: 'left' },
+  ceo: { x: 26, y: 4, face: 'down' },
+  cfo: { x: 29, y: 4, face: 'down' },
+  gc: { x: 32, y: 4, face: 'down' },
+  analyst: { x: 26, y: 8, face: 'up' },
+  partner: { x: 29, y: 8, face: 'up' },
+  hr: { x: 26, y: 8, face: 'up' },
+  operator: { x: 29, y: 8, face: 'up' },
+  cto: { x: 26, y: 4, face: 'down' },
+  comms: { x: 35, y: 8, face: 'left' },
 };
 
-export const PLAYER_GALLERY: SeatDef = { x: 32, y: 5, face: 'up' };
+export const PLAYER_GALLERY: SeatDef = { x: 32, y: 8, face: 'up' };
 
 /** Table-center tile the camera holds on during a meeting. */
-export const BOARD_CAMERA = { x: 30, y: 4 };
+export const BOARD_CAMERA = { x: 30, y: 7 };

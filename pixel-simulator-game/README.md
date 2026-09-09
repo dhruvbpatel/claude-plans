@@ -1,8 +1,12 @@
 # Activist Pixel Sim
 
-Local-first activist-investor pixel RPG: Vite + React + Phaser 3 client, FastAPI backend. Contracts and phase checklist live in [`SPEC.md`](SPEC.md).
+Local-first activist-investor pixel RPG: Vite + React + Phaser 3 client, FastAPI backend.
 
-**POC status:** Phases **0–6 complete**, plus a boardroom meeting cutscene on beats 4 / 7 / 9. Phase 7 (multiplayer) is out of scope until local sign-off.
+**Default campaign:** NovaTech Proxy War — 8 quarters, 16-card deck, 13 metrics, 6-seat war room, deterministic rival, weighted composite score (≥110 wins).
+
+**Meridian baseline:** `http://localhost:5173/?scenario=meridian-activist-01` (9 authored beats).
+
+Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). NovaTech design: [`../docs/superpowers/specs/2026-08-13-proxy-war-realignment-design.md`](../docs/superpowers/specs/2026-08-13-proxy-war-realignment-design.md). Meridian contracts: [`SPEC.md`](SPEC.md).
 
 ## How to run
 
@@ -35,15 +39,18 @@ npm run dev
 
 Open **[http://localhost:5173](http://localhost:5173)**. Leave both processes running.
 
-Replay a seeded curveball with `http://localhost:5173/?seed=42`.
+Replay a seeded run: `http://localhost:5173/?seed=42`.
 
-### 3. How to play
+### 3. How to play (NovaTech)
 
-- **Move:** WASD or arrow keys. **Interact:** `E` or click an NPC / yellow zone pad.
-- Follow the side-panel hint (next beat + room).
-- **Office beats** (1–3, 5, 6, 8): walk to the room, interact, watch the debate, pick a card. Your pick applies immediately.
-- **Boardroom beats** (4, 7, 9): walk to the **Boardroom** pad or the Chair. Pick your motion first. Agents walk to the table; **any key or click** shows the next line. After the last line, the board vote overlay appears (labels only — no KPI numbers). The **board’s** choice is what scores; then agents walk back to their desks.
-- Lobby pad: once-per-beat war-chest bonus, not a beat.
+- **Move:** WASD or arrow keys. **Interact:** `E` or click a yellow zone pad / NPC.
+- Walk to the **Boardroom** or **War Room** pad (or a debate NPC) and press **E**.
+- The camera cuts to the table; the seven debate seats snap in. **Any key or click** advances a debate line.
+- Pick a card (pros/cons only). You may follow or defy the chair. That card is what scores.
+- After the quarter resolves, walk back to the pad for the next quarter (8 total).
+- Soft-lock input checkbox in the side panel is a **dev** tool — leave it unchecked.
+
+Meridian (`?scenario=meridian-activist-01`): office beats debate-then-cards; boardroom beats 4 / 7 / 9 are motion-then-vote (board’s choice scores).
 
 ### Tests
 
@@ -56,7 +63,18 @@ cd ../frontend && npm run build
 
 ### Env
 
-Copy `.env.example` to `.env` (gitignored). Default `DEBATE_PROVIDER=deterministic` and `BOARD_VOTE_RESOLVER=authored` need **no API key**. Gateway vars are only for `DEBATE_PROVIDER=gateway`.
+Copy `.env.example` to `.env` (gitignored). Defaults need **no API key**.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DEBATE_PROVIDER` | `deterministic` | `deterministic` \| `gateway` \| `swarm` |
+| `WAR_ROOM_PROVIDER` | `deterministic` | `deterministic` \| `swarm` (stub) |
+| `CARD_DEALER` | `deterministic` | seeded hands |
+| `RIVAL_POLICY` | `deterministic` | pressure-gauge rival |
+| `SCORING_MODEL` | `deterministic` | weighted composite |
+| `EVENT_DECK` | `deterministic` | quarterly news |
+| `BOARD_VOTE_RESOLVER` | `authored` | Meridian boardroom ballots |
+| `VITE_SCENARIO_ID` | `novatech-proxy-war-01` | frontend default; URL `?scenario=` wins |
 
 Never commit `.env`, `venv/`, `.venv/`, or API keys.
 
@@ -66,32 +84,37 @@ Never commit `.env`, `venv/`, `.venv/`, or API keys.
 frontend/                 # Vite + React + Phaser 3
 backend/
   app/main.py             # FastAPI + CORS + /health
-  app/api/                # sessions, decide, debate SSE
-  app/engine/             # ScoringEngine (deterministic KPIs)
-  app/providers/          # deterministic | gateway | swarm
-  scenarios/              # meridian-activist-01.json
-  scripts/simulate.py     # headless 9-beat / balance runs
+  app/api/sessions.py     # REST + SSE; v1 beats / v2 quarters
+  app/engine/             # scoring, dealer, rival, war room, composite
+  app/providers/          # debate: deterministic | gateway | swarm stub
+  scenarios/
+    novatech-proxy-war-01.json
+    meridian-activist-01.json
+  scripts/simulate.py
   tests/
+docs/ARCHITECTURE.md
 docs/RECON.md
-SPEC.md
+SPEC.md                   # Meridian v1 bible
 ```
 
 ## What works
 
 | Area | Notes |
 |------|--------|
-| Full 9-beat campaign | Explore → interact → debate SSE → decide → KPI patch |
-| Boardroom (beats 4, 7, 9) | Cards first → sit → key-advance lines → board vote applies |
-| Scoring | Authored deltas only; LLM never sets KPIs |
-| Providers | `deterministic` (default), `gateway` (fallback on error), `swarm` stub |
-| Phase 6 polish | News ticker, lobby once-per-beat bonus, seed replay, ~40–60% win band |
-| Office | Phaser tilemap, WASD, NPC/zone pads, speech bubbles |
+| NovaTech 8-quarter loop | Deal → snap convene → debate → player card → knock-ons / settle / rival |
+| Meridian 9-beat loop | Still playable via `?scenario=` |
+| Scoring | Authored / config deltas only; LLM never sets KPIs |
+| War room | 6 seats + chair; forced dissent; player may defy |
+| Rival | Pressure gauge; attacks / interrupts from scenario JSON |
+| Providers | Deterministic defaults; swarm / gateway are plug points |
+| Office | Phaser tilemap, WASD, 7 NovaTech NPCs, clamped speech bubbles |
 
 ## Docs
 
 | Doc | Purpose |
 |-----|---------|
-| [`SPEC.md`](SPEC.md) | Agent bible: contracts, API, phases, DoD |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Shipped v2 architecture |
+| [`SPEC.md`](SPEC.md) | Meridian v1 agent bible |
 | [`docs/RECON.md`](docs/RECON.md) | Phase 0 greenfield recon |
-| [`PIXEL-BOARDROOM-HANDOFF.md`](PIXEL-BOARDROOM-HANDOFF.md) | Older Node/Anthropic brief (superseded by SPEC) |
-| [`REBUILD-HANDOFF.md`](REBUILD-HANDOFF.md) | Rebuild-from-scratch handoff for another agent |
+| [`PIXEL-BOARDROOM-HANDOFF.md`](PIXEL-BOARDROOM-HANDOFF.md) | Older Node/Anthropic brief (superseded) |
+| [`REBUILD-HANDOFF.md`](REBUILD-HANDOFF.md) | Rebuild-from-scratch handoff |
