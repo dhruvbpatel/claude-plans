@@ -23,17 +23,17 @@ export interface RoomDef {
 export const ROOMS: RoomDef[] = [
   {
     id: 'war_room', label: 'Strategy Room',
-    x0: 0, y0: 0, x1: 17, y1: 11, floor: TILES.WAR,
+    x0: 0, y0: 0, x1: 14, y1: 11, floor: TILES.WAR,
     doors: [{ x: 8, y: 11 }, { x: 9, y: 11 }],
   },
   {
     id: 'boardroom', label: 'War Room',
-    x0: 17, y0: 0, x1: 42, y1: 11, floor: TILES.BOARD,
+    x0: 14, y0: 0, x1: 45, y1: 11, floor: TILES.BOARD,
     doors: [{ x: 29, y: 11 }, { x: 30, y: 11 }],
   },
   {
     id: 'ceo_office', label: 'Research',
-    x0: 42, y0: 0, x1: 59, y1: 11, floor: TILES.CEO,
+    x0: 45, y0: 0, x1: 59, y1: 11, floor: TILES.CEO,
     doors: [{ x: 50, y: 11 }, { x: 51, y: 11 }],
   },
   {
@@ -133,7 +133,7 @@ export const PLAYER_SPAWN = { x: 32, y: 36 };
 
 const CEO: NpcDef = {
   id: 'ceo', name: 'CEO', spawn: { x: 50, y: 6 },
-  wander: { x0: 44, y0: 3, x1: 57, y1: 9 },
+  wander: { x0: 46, y0: 3, x1: 57, y1: 9 },
   palette: { skin: '#f0c8a0', hair: '#9aa0a8', shirt: '#3a3f4a', pants: '#2b2f38' },
 };
 const CFO: NpcDef = {
@@ -158,12 +158,12 @@ const ANALYST: NpcDef = {
 };
 const PARTNER: NpcDef = {
   id: 'partner', name: 'Activist Partner', spawn: { x: 7, y: 8 },
-  wander: { x0: 2, y0: 3, x1: 14, y1: 9 },
+  wander: { x0: 2, y0: 3, x1: 13, y1: 9 },
   palette: { skin: '#e8b98a', hair: '#5a3a28', shirt: '#5d3a78', pants: '#2e2440' },
 };
 const OPERATOR: NpcDef = {
   id: 'operator', name: 'Operating Partner', spawn: { x: 9, y: 6 },
-  wander: { x0: 2, y0: 3, x1: 14, y1: 9 },
+  wander: { x0: 2, y0: 3, x1: 13, y1: 9 },
   palette: { skin: '#e8b98a', hair: '#5a3a28', shirt: '#5d3a78', pants: '#2e2440' },
 };
 const CTO: NpcDef = {
@@ -173,7 +173,7 @@ const CTO: NpcDef = {
 };
 const HR: NpcDef = {
   id: 'hr', name: 'Talent / HR', spawn: { x: 52, y: 8 },
-  wander: { x0: 44, y0: 3, x1: 57, y1: 9 },
+  wander: { x0: 46, y0: 3, x1: 57, y1: 9 },
   palette: { skin: '#f0c8a0', hair: '#9aa0a8', shirt: '#3a3f4a', pants: '#2b2f38' },
 };
 const COMMS: NpcDef = {
@@ -205,23 +205,23 @@ export interface FurnitureDef {
 
 export const FURNITURE: FurnitureDef[] = [
   // Boardroom — table sits mid-room so north-row bubbles have headroom
-  { texture: 'board_table', x: 25, y: 6, solid: true },
-  { texture: 'chair', x: 26, y: 4, solid: false },
+  { texture: 'board_table', x: 22, y: 6, solid: true },
+  { texture: 'chair', x: 24, y: 4, solid: false },
   { texture: 'chair', x: 29, y: 4, solid: false },
-  { texture: 'chair', x: 32, y: 4, solid: false },
-  { texture: 'chair', x: 26, y: 8, solid: false },
+  { texture: 'chair', x: 34, y: 4, solid: false },
+  { texture: 'chair', x: 24, y: 8, solid: false },
   { texture: 'chair', x: 29, y: 8, solid: false },
-  { texture: 'chair', x: 32, y: 8, solid: false },
-  { texture: 'chair', x: 35, y: 6, solid: false },
-  { texture: 'chair', x: 35, y: 8, solid: false },
+  { texture: 'chair', x: 34, y: 8, solid: false },
+  { texture: 'chair', x: 36, y: 6, solid: false },
+  { texture: 'chair', x: 36, y: 8, solid: false },
   { texture: 'plant', x: 18, y: 1, solid: false },
   { texture: 'plant', x: 41, y: 9, solid: false },
   // CEO office
   { texture: 'desk', x: 48, y: 4, solid: true },
   { texture: 'chair', x: 49, y: 3, solid: false },
   { texture: 'shelf', x: 54, y: 1, solid: true },
-  { texture: 'sofa', x: 44, y: 8, solid: true },
-  { texture: 'plant', x: 43, y: 1, solid: false },
+  { texture: 'sofa', x: 46, y: 8, solid: true },
+  { texture: 'plant', x: 57, y: 1, solid: false },
   // CFO office
   { texture: 'desk', x: 48, y: 16, solid: true },
   { texture: 'chair', x: 49, y: 15, solid: false },
@@ -248,7 +248,7 @@ export const FURNITURE: FurnitureDef[] = [
   { texture: 'chair', x: 8, y: 4, solid: false },
   { texture: 'chair', x: 6, y: 7, solid: false },
   { texture: 'chair', x: 8, y: 7, solid: false },
-  { texture: 'plant', x: 15, y: 1, solid: false },
+  { texture: 'plant', x: 12, y: 1, solid: false },
   // Press bay
   { texture: 'podium', x: 12, y: 30, solid: true },
   { texture: 'chair', x: 5, y: 33, solid: false },
@@ -282,19 +282,19 @@ export interface SeatDef {
 
 /** Unique stand/sit tiles around the board table. */
 export const BOARD_SEATS: Record<string, SeatDef> = {
-  chair: { x: 35, y: 6, face: 'left' },
-  ceo: { x: 26, y: 4, face: 'down' },
+  chair: { x: 36, y: 6, face: 'left' },
+  ceo: { x: 24, y: 4, face: 'down' },
   cfo: { x: 29, y: 4, face: 'down' },
-  gc: { x: 32, y: 4, face: 'down' },
-  analyst: { x: 26, y: 8, face: 'up' },
+  gc: { x: 34, y: 4, face: 'down' },
+  analyst: { x: 24, y: 8, face: 'up' },
   partner: { x: 29, y: 8, face: 'up' },
-  hr: { x: 26, y: 8, face: 'up' },
+  hr: { x: 24, y: 8, face: 'up' },
   operator: { x: 29, y: 8, face: 'up' },
-  cto: { x: 26, y: 4, face: 'down' },
-  comms: { x: 35, y: 8, face: 'left' },
+  cto: { x: 24, y: 4, face: 'down' },
+  comms: { x: 36, y: 8, face: 'left' },
 };
 
-export const PLAYER_GALLERY: SeatDef = { x: 32, y: 8, face: 'up' };
+export const PLAYER_GALLERY: SeatDef = { x: 34, y: 8, face: 'up' };
 
 /** Table-center tile the camera holds on during a meeting. */
-export const BOARD_CAMERA = { x: 30, y: 7 };
+export const BOARD_CAMERA = { x: 29, y: 6 };
