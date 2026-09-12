@@ -24,7 +24,6 @@ export const GameEvents = {
   INTERACT: 'game:interact',
   PROMPT: 'game:prompt',
   PHASE: 'game:phase',
-  SPEECH: 'game:speech',
   KPI: 'game:kpi',
   OPTIONS: 'game:options',
   NEWS: 'game:news',
@@ -37,4 +36,9 @@ export const GameEvents = {
   BOARD_VOTE: 'game:boardVote',
   WAR_ROOM: 'game:warRoom',
   DEBATE_LINE: 'game:debateLine',
+  DEBATE_COMPLETE: 'game:debateComplete',
+  LINE_SHOWN: 'ui:debateLineShown',
+  DEBATE_DISMISSED: 'ui:debateDismissed',
+  TOUR_FOCUS: 'ui:tourFocus',
+  TOUR_END: 'ui:tourEnd',
 } as const;

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import { GameEvents, gameBus } from './eventBus';
 import { OfficeScene } from './OfficeScene';
+import { getState } from '../state/store';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -17,8 +18,8 @@ const config: Phaser.Types.Core.GameConfig = {
     arcade: { debug: false },
   },
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.NO_CENTER,
   },
 };
 
@@ -34,14 +35,24 @@ export function PhaserGame() {
       canvas.tabIndex = 0;
       canvas.focus({ preventScroll: true });
     };
-    // Option cards are HTML buttons; clicking one steals keys from Phaser.
-    const unsub = gameBus.on(GameEvents.PHASE, (payload) => {
-      const { phase } = payload as { phase: string };
-      if (phase === 'EXPLORE' || phase === 'GAME_END') focusCanvas();
+    const syncLock = () => {
+      const s = getState();
+      const locked = s.uiMode !== 'PLAYING' || s.tourActive;
+      gameBus.emit(GameEvents.INPUT_LOCK, { locked });
+    };
+    const unsubs = [
+      gameBus.on(GameEvents.DEBATE_DISMISSED, focusCanvas),
+      gameBus.on(GameEvents.PHASE, (payload) => {
+        const { phase } = payload as { phase: string };
+        if (phase === 'GAME_END') focusCanvas();
+      }),
+    ];
+    game.events.once(Phaser.Core.Events.READY, () => {
+      syncLock();
+      focusCanvas();
     });
-    game.events.once(Phaser.Core.Events.READY, focusCanvas);
     return () => {
-      unsub();
+      unsubs.forEach((unsub) => unsub());
       game.destroy(true);
     };
   }, []);
